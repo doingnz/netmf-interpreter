@@ -48,8 +48,6 @@
     <CC_CPP_ASM_INTERLEAVE Condition="'$(COMPILER_TOOL_VERSION)'=='MDK4.22'" > $(SWTC)asm $(SWTC)interleave </CC_CPP_ASM_INTERLEAVE>
     <CC_CPP_ASM_INTERLEAVE Condition="'$(COMPILER_TOOL_VERSION)'=='MDK4.23'" > $(SWTC)asm $(SWTC)interleave </CC_CPP_ASM_INTERLEAVE>
     <CC_CPP_ASM_INTERLEAVE Condition="'$(COMPILER_TOOL_VERSION)'=='MDK4.54'" >                              </CC_CPP_ASM_INTERLEAVE>-->
-
-    <CC_CPP_ASM_INTERLEAVE Condition="'$(COMPILER_TOOL_VERSION)'=='DS55.05'"  > $(SWTC)asm $(SWTC)interleave </CC_CPP_ASM_INTERLEAVE>
     
     <CC_CPP_TARGETTYPE_FLAGS Condition="'$(FLAVOR)'=='RTM'"         >$(CC_CPP_TARGETTYPE_FLAGS) $(SWTC)no_debug $(SWTC)dwarf2 $(SWTC)no_debug_macros -O3 $(SWTC)inline -Otime $(SWTC)no_autoinline $(CC_CPP_ASM_INTERLEAVE) </CC_CPP_TARGETTYPE_FLAGS>
     <CC_CPP_TARGETTYPE_FLAGS Condition="'$(FLAVOR)'=='Debug'"       >$(CC_CPP_TARGETTYPE_FLAGS) $(SWTC)debug    $(SWTC)dwarf2 $(SWTC)debug_macros    -O0 $(SWTC)inline                             $(CC_CPP_ASM_INTERLEAVE) </CC_CPP_TARGETTYPE_FLAGS>
@@ -283,8 +281,8 @@
     <!--     echo adding LOAD_IMAGE_CRC value to $*.symdefs -->
     <Exec Condition="'$(ADD_LOAD_IMAGE_CRC)'=='true'" Command="$(TOOLS_DIR)\BuildHelper -hashBuild $(EXEName).bin$(ImageLocation) $(EXEName).symdefs" />
 
-    <Exec Condition="'$(AssemblyName)'=='TinyCLR'"    Command="copy /Y $(BIN_DIR)\$(AssemblyName)_$(TARGETPLATFORM)_$(TARGETLOCATION)_$(FLAVOR)_$(COMPILER_TOOL_VERSION).feedback $(SPO_SDK)\tools\make\Feedback\$(TARGETPLATFORM)_$(COMPILER_TOOL_VERSION).feedback" ContinueOnError="true"/>
-    <Exec Condition="'$(AssemblyName)'=='TinyBooter'" Command="copy /Y $(BIN_DIR)\$(AssemblyName)_$(TARGETPLATFORM)_$(TARGETLOCATION)_$(FLAVOR)_$(COMPILER_TOOL_VERSION).feedback $(SPO_SDK)\tools\make\Feedback\$(TARGETPLATFORM)_$(COMPILER_TOOL_VERSION)_loader.feedback" ContinueOnError="true"/>
+    <Exec Condition="'$(AssemblyName)'=='TinyCLR'"    Command="copy /Y &quot;$(BIN_DIR)\$(AssemblyName)_$(TARGETPLATFORM)_$(TARGETLOCATION)_$(FLAVOR)_$(COMPILER_TOOL_VERSION).feedback&quot; &quot;$(SPO_SDK)\tools\make\Feedback\$(TARGETPLATFORM)_$(COMPILER_TOOL_VERSION).feedback&quot;" ContinueOnError="true"/>
+    <Exec Condition="'$(AssemblyName)'=='TinyBooter'" Command="copy /Y &quot;$(BIN_DIR)\$(AssemblyName)_$(TARGETPLATFORM)_$(TARGETLOCATION)_$(FLAVOR)_$(COMPILER_TOOL_VERSION).feedback&quot; &quot;$(SPO_SDK)\tools\make\Feedback\$(TARGETPLATFORM)_$(COMPILER_TOOL_VERSION)_loader.feedback&quot;" ContinueOnError="true"/>
   </Target>
 
   <Target Name="FindBinFilesForSig">
@@ -370,13 +368,13 @@
     <Message Text="Target: TinyClrDat with outputs $(OBJ_DIR)\$(AssemblyName)_dat.$(OBJ_EXT)"/>
     <Message Condition="'$(FORCEDAT)'!=''" Text="Building $(AssemblyName).dat from $(BUILD_TREE_CLIENT)\dat\$(ENDIANNESS)\$(AssemblyName)_$(FORCEDAT).dat"/>
     <Message Condition="'$(FORCEDAT)'==''" Text="Building $(AssemblyName).dat from the features specified in the $(AssemblyName).proj file"/>
-    <Exec Condition="'$(FORCEDAT)'!='' AND EXISTS('$(BUILD_TREE_CLIENT)\dat\$(ENDIANNESS)\$(AssemblyName)_$(FORCEDAT).dat')" Command="copy /y $(BUILD_TREE_CLIENT)\dat\$(ENDIANNESS)\$(AssemblyName)_$(FORCEDAT).dat $(BIN_DIR)\$(AssemblyName).dat" />
+    <Exec Condition="'$(FORCEDAT)'!='' AND EXISTS('$(BUILD_TREE_CLIENT)\dat\$(ENDIANNESS)\$(AssemblyName)_$(FORCEDAT).dat')" Command="copy /y &quot;$(BUILD_TREE_CLIENT)\dat\$(ENDIANNESS)\$(AssemblyName)_$(FORCEDAT).dat&quot; &quot;$(BIN_DIR)\$(AssemblyName).dat&quot;" />
     <Exec Command="$(ADS_WRAPPER) $(AS) -I$(BIN_DIR) $(AS_FLAGS) $(POS_DEPENDENT) $(SWTC)LIST $(OBJ_DIR)\$(AssemblyName)_dat.txt $(SWTC)xref -o $(OBJ_DIR)\$(AssemblyName)_dat.$(OBJ_EXT) $(AS_SUBDIR)\$(AssemblyName)_dat.s"/>
     <Message                               Text="========== Database file content:"/>    
     <Exec Command="$(PRG_MMP) -dump_dat $(BIN_DIR)\$(AssemblyName).dat" />
     <Message                               Text="========== End of Database file content"/>    
     <Message                               Text="***************************************************************************************************"/>
-    <Exec Command="copy /BVY $(BIN_DIR)\$(AssemblyName).dat $(BIN_DIR)\$(AssemblyName).dat.fromlastbuildrun" />
+    <Exec Command="copy /BVY &quot;$(BIN_DIR)\$(AssemblyName).dat&quot; &quot;$(BIN_DIR)\$(AssemblyName).dat.fromlastbuildrun&quot;" />
     <Exec Command="del  /Q /F $(BIN_DIR)\$(AssemblyName).dat"/>
   </Target>
 
