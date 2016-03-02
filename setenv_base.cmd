@@ -35,7 +35,9 @@ IF /I NOT "%COMPILER_TOOL%"=="RVDS" IF /I NOT "%COMPILER_TOOL%"=="ADS" set NO_AD
 
 SET CURRENTCD=%CD%
 
-CALL "%~dp0\tools\scripts\init.cmd"
+REM CALL "%~dp0\tools\scripts\init.cmd"
+msbuild /t:DefineBuildEnvironmentVariables BuildEnv.props
+CALL "setenv_init.cmd"
 
 rem @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
