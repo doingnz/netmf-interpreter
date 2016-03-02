@@ -29,6 +29,7 @@
     <VcInstallDir Condition="'$(VcInstallDir)'==''">$([MSBuild]::GetRegistryValueFromView('HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\VisualStudio\SxS\VC7', '$(VisualStudioVersion)', null, RegistryView.Registry32))</VcInstallDir>
     
     <!-- From previous init.cmd -->
+    <INIT_CMD_FILENAME>setenv_init.cmd</INIT_CMD_FILENAME>
     <OEM_NAME Condition="'$(OEM_NAME)'==''" >Microsoft</OEM_NAME>
     <FX_35>$(WINDIR)\Microsoft.NET\Framework\v3.5</FX_35>
     <FX_40>$(WINDIR)\Microsoft.NET\Framework\v4.0</FX_40>
@@ -99,7 +100,7 @@ System.Environment.SetEnvironmentVariable("PATH", path);
 
 
   <!-- Inlined task to set/export Environment Variables -->
-  <UsingTask TaskName="SetEnvironmentVariable" TaskFactory="CodeTaskFactory" AssemblyFile="C:\Program Files (x86)\MSBuild\14.0\Bin\Microsoft.Build.Tasks.Core.dll">
+  <UsingTask TaskName="SetEnvironmentVariable" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <Name ParameterType="System.String" Required="true" />
       <Value ParameterType="System.String" Required="true" />
@@ -150,9 +151,9 @@ System.Environment.SetEnvironmentVariable("PATH", path);
   </ItemGroup>
   
   <Target Name="DefineBuildEnvironmentVariables">
-    <WriteLinesToFile File="setenv_init.cmd" Lines="@(BuildEnvItem)" Overwrite="true" Encoding="ASCII"/>
-    <Exec Command="echo SET PATH=@(BinPath);$(PATH);$(FX_40) >>Build_env.cmd" />
-    <Exec Command="Type setenv_init.cmd" />
+    <WriteLinesToFile File="$(INIT_CMD_FILENAME)" Lines="@(BuildEnvItem)" Overwrite="true" Encoding="ASCII"/>
+    <Exec Command="echo SET PATH=@(BinPath);$(PATH);$(FX_40) >>$(INIT_CMD_FILENAME)" />
+    <Exec Command="Type $(INIT_CMD_FILENAME)" />
   </Target>
 </Project>
 
