@@ -27,6 +27,38 @@
     <VisualStudioVersion Condition="'$(VisualStudioVersion)'==''" >14.0</VisualStudioVersion>
     <!-- use registry to get VC install directory (this is what the VCVARS32.bat does for a VS command prompt) -->
     <VcInstallDir Condition="'$(VcInstallDir)'==''">$([MSBuild]::GetRegistryValueFromView('HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\VisualStudio\SxS\VC7', '$(VisualStudioVersion)', null, RegistryView.Registry32))</VcInstallDir>
+    
+    <!-- From previous init.cmd -->
+    <INIT_CMD_FILENAME>setenv_init.cmd</INIT_CMD_FILENAME>
+    <OEM_NAME Condition="'$(OEM_NAME)'==''" >Microsoft</OEM_NAME>
+    <FX_35>$(WINDIR)\Microsoft.NET\Framework\v3.5</FX_35>
+    <FX_40>$(WINDIR)\Microsoft.NET\Framework\v4.0</FX_40>
+    <MSBUILD_EXE>$(FX_40)\msbuild.exe</MSBUILD_EXE>
+    
+    <BUILD_ROOT Condition="'$(COVERAGEBUILDID)'!=''">$(BUILD_ROOT)\Coverage</BUILD_ROOT>
+
+    <!-- init.cmd: BUILD_TREE=%BUILD_ROOT%\%FLAVOR_DAT%  BuildEnv.props: set above to $(BUILD_ROOT)\$(Configuration) -->
+    <!-- init.cmd: BUILD_TREE_CLIENT=%BUILD_TREE%\Client BuildEnv.props: set above to same (BUILD_TREE)\Client -->
+
+    <!-- init.cmd: uses $(FLAVOR_WIN)                    BuildEnv.propr: uses $(Configuration). -->
+    <!-- Both usually defined to the same value and default to Release. Use BuildEnv.props version. -->
+    <!-- <BUILD_TREE_SERVER>$(BUILD_ROOT)\$(FLAVOR_WIN)\Server</BUILD_TREE_SERVER>  -->
+    <DEVPATH>$(BUILD_TREE_SERVER)\dll</DEVPATH>
+
+    <!-- init.cmd: same as defined above in BuildEnv.props 
+    <MDP_EXE>$(BUILD_TREE_SERVER)\dll\MetadataProcessor.exe</MDP_EXE>
+    <BHL_EXE>$(BUILD_TREE_SERVER)\dll\BuildHelper.exe</BHL_EXE> -->
+
+    <BUILD_TEST_ROOT Condition="'$(COVERAGEBUILDID)'== ''">$(BUILD_ROOT)\$(FLAVOR_DAT)\Test</BUILD_TEST_ROOT>
+    <BUILD_TEST_ROOT Condition="'$(COVERAGEBUILDID)'!= ''">$(BUILD_ROOT)\Coverage\%FLAVOR_DAT%\Test</BUILD_TEST_ROOT>
+    <BUILD_TEST_TREE>$(BUILD_TEST_ROOT)</BUILD_TEST_TREE>
+    <BUILD_TEST_TREE_CLIENT>$(BUILD_TEST_ROOT)\client</BUILD_TEST_TREE_CLIENT>
+    <BUILD_TEST_TREE_SERVER>$(BUILD_TEST_ROOT)\server</BUILD_TEST_TREE_SERVER>
+    
+    <OEM_PATH>$(OEM_ROOT)\$(OEM_NAME)</OEM_PATH>
+    <!-- init.cmd: same as defined above in BuildEnv.props 
+    <CLRLIB>$(CLRROOT)\Tools\Libraries</CLRLIB> -->
+    
   </PropertyGroup>
   
   <!-- Additional binary search paths -->
@@ -35,7 +67,7 @@
     <BinPath Include="$(SPOROOT)\tools\x86\bin"/>
     <BinPath Include="$(SPOROOT)\tools\bin"/>
     <BinPath Include="$(SPOROOT)" />
-    <BinPath Include="$(VcInstallDir)\Bin" /> 
+    <BinPath Include="$(VcInstallDir)Bin" />
   </ItemGroup>
   
   <!-- Inlined task to add paths to the environment of this build -->
@@ -64,6 +96,65 @@ System.Environment.SetEnvironmentVariable("PATH", path);
   -->
   <Target Name="SetPathEnv">
     <SetEnvironmentBinPath Paths="@(BinPath)"/>
+  </Target>
+
+
+  <!-- Inlined task to set/export Environment Variables -->
+  <!-- <UsingTask TaskName="SetEnvironmentVariable" TaskFactory="CodeTaskFactory" AssemblyFile="C:\Program Files (x86)\MSBuild\14.0\Bin\Microsoft.Build.Tasks.Core.dll"> -->
+  <UsingTask TaskName="SetEnvironmentVariable" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Name ParameterType="System.String" Required="true" />
+      <Value ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[System.Environment.SetEnvironmentVariable(Name, Value);]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <ItemGroup>
+    <BuildEnvItem Include="REM This file is auto generated. Do not edit" />
+    <!-- Do not set these in the Global cmd process as they have an interaction with the msbuild scripts 
+         running later which breaks the build process. (might be a hint for other errors in the affected scripts) --> 
+    <!-- <BuildEnvItem Include="SET FLAVOR=$(FLAVOR)" /> -->
+    <!-- <BuildEnvItem Include="SET Configuration=$(Configuration)"/> -->
+    <BuildEnvItem Include="SET SPOCLIENT=$(SPOCLIENT)"/>
+    <BuildEnvItem Include="SET CLRROOT=$(CLRROOT)"/>
+    <BuildEnvItem Include="SET SPOROOT=$(SPOROOT)"/>
+    <BuildEnvItem Include="SET COMMON_BUILD_ROOT=$(COMMON_BUILD_ROOT)"/>
+    <BuildEnvItem Include="SET BUILD_ROOT_BASE=$(BUILD_ROOT_BASE)"/>
+    <BuildEnvItem Include="SET BUILD_ROOT=$(BUILD_ROOT)"/>
+    <BuildEnvItem Include="SET BUILD_TREE=$(BUILD_TREE)"/>
+    <BuildEnvItem Include="SET BUILD_TREE_CLIENT=$(BUILD_TREE_CLIENT)"/>
+    <BuildEnvItem Include="SET BUILD_TREE_SERVER=$(BUILD_TREE_SERVER)"/>
+    <BuildEnvItem Include="SET BHL_EXE=$(BHL_EXE)"/>
+    <BuildEnvItem Include="SET MDP_EXE=$(MDP_EXE)"/>
+    <BuildEnvItem Include="SET NetMfTargetsBaseDir=$(NetMfTargetsBaseDir)"/>
+    <BuildEnvItem Include="SET FLAVOR_DAT=$(FLAVOR_DAT)"/>
+    <BuildEnvItem Include="SET FLAVOR_WIN=$(FLAVOR_WIN)"/>
+    <BuildEnvItem Include="SET FLAVOR_MEMORY=$(FLAVOR_MEMORY)"/>
+    <BuildEnvItem Include="SET CLRLIB=$(CLRLIB)"/>
+    <BuildEnvItem Include="SET VisualStudioVersion=$(VisualStudioVersion)"/>
+    <BuildEnvItem Include="SET VcInstallDir=$(VcInstallDir)"/>
+    
+    <!-- From previous init.cmd -->
+    <BuildEnvItem Include="SET OEM_NAME=$(OEM_NAME)"/>
+    <BuildEnvItem Include="SET FX_35=$(FX_35)"/>
+    <BuildEnvItem Include="SET FX_40=$(FX_40)"/>
+    <BuildEnvItem Include="SET MSBUILD_EXE=$(MSBUILD_EXE)"/>
+    <BuildEnvItem Include="SET DEVPATH=$(DEVPATH)"/>
+    <BuildEnvItem Include="SET BUILD_TEST_ROOT=$(BUILD_TEST_ROOT)"/>
+    <BuildEnvItem Include="SET BUILD_TEST_TREE=$(BUILD_TEST_TREE)"/>
+    <BuildEnvItem Include="SET BUILD_TEST_TREE_CLIENT=$(BUILD_TEST_TREE_CLIENT)"/>
+    <BuildEnvItem Include="SET BUILD_TEST_TREE_SERVER=$(BUILD_TEST_TREE_SERVER)"/>
+    <BuildEnvItem Include="SET OEM_PATH=$(OEM_PATH)"/>
+  </ItemGroup>
+  
+  <Target Name="DefineBuildEnvironmentVariables">
+    <WriteLinesToFile File="$(INIT_CMD_FILENAME)" Lines="@(BuildEnvItem)" Overwrite="true" Encoding="ASCII"/>
+    <Exec Command="echo SET PATH=@(BinPath);$(PATH);$(FX_40) >>$(INIT_CMD_FILENAME)" />
+    <Exec Command="Type $(INIT_CMD_FILENAME)" />
   </Target>
 </Project>
 
