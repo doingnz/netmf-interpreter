@@ -4,6 +4,7 @@
 *_assemblyinfo.txt
 *.feedback
 /alias.txt
+/setenv_init.cmd
 
 # CMSIS and CMSIS_RTX
 /CMSIS/CMSIS/
