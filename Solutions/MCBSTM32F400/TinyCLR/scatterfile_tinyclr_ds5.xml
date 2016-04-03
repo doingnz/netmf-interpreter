@@ -113,7 +113,7 @@
         <ExecRegion Name="ER_VECTORS" Base="%IRAM_BaseAddress%" Options="ABSOLUTE NOCOMPRESS" Size="">
             <FileMapping Name="*" Options="(VectorTable +FIRST)" />
         </ExecRegion>
-
+        
         <ExecRegion Name="ER_RAM_RW" Base="+0" Options="ABSOLUTE NOCOMPRESS" Size="">
             <FileMapping Name="*" Options="(+RW-DATA, +ZI)" />
         </ExecRegion>
