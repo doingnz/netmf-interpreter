@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <FeatureName>Microsoft.SPOT.MFConfigHelper</FeatureName>
+    <Guid>{31f8b09d-c6aa-4678-af73-aeed28315313}</Guid>
+    <Description>&lt;Add Feature Description Here&gt;</Description>
+    <Groups />
+    <MICROSOFT_SPOT_MFCONFIGHELPER_FEATUREPROJ>True</MICROSOFT_SPOT_MFCONFIGHELPER_FEATUREPROJ>
+  </PropertyGroup>
+  <ItemGroup>
+    <DriverLibs Include="Microsoft_SPOT_MFConfigHelper.$(LIB_EXT)" />
+    <InteropFeature Include="Microsoft_SPOT_MFConfigHelper" />
+    <MMP_DAT_CreateDatabase Include="$(BUILD_TREE_CLIENT)\pe\$(ENDIANNESS)\Microsoft.SPOT.MFConfigHelper.pe" />
+    <RequiredProjects Include="C:\uscom-netmf\netmf-interpreter\Solutions\BPPLUSR7\Interops\Microsoft.SPOT.MFConfigHelper\Managed\Stubs\dotnetmf.proj" />
+  </ItemGroup>
+</Project>

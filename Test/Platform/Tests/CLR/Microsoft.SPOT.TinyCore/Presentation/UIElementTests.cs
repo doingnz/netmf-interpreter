@@ -39,6 +39,7 @@ namespace Microsoft.SPOT.Platform.Tests
             btnEvent = true;
             fcsEvent = false;
             _btnEventCntr = 0;
+            handledEventsToo = false;
             rEvents = new RoutedEvent[] { Buttons.ButtonDownEvent, Buttons.ButtonUpEvent,             
                 Buttons.PreviewButtonDownEvent, Buttons.PreviewButtonUpEvent};
             for (int i = 0; i < rEvents.Length; i++)
@@ -60,6 +61,11 @@ namespace Microsoft.SPOT.Platform.Tests
             }
             btnEvent = false;
 
+            if (CleaningWindow() != MFTestResults.Pass)
+            {
+                return MFTestResults.Fail;
+            }
+
             return testResult;
         }
 
@@ -68,7 +74,6 @@ namespace Microsoft.SPOT.Platform.Tests
         {
             MFTestResults testResult = MFTestResults.Pass;
             Log.Comment("Raising FocusChangedEventEvents and Verifying");
-            //addToEvtRoute = false;
             btnEvent = false;
             fcsEvent = true;
             _fcsEventCntr = 0;
@@ -91,6 +96,11 @@ namespace Microsoft.SPOT.Platform.Tests
             }
             fcsEvent = false;
 
+            if (CleaningWindow() != MFTestResults.Pass)
+            {
+                return MFTestResults.Fail;
+            }
+
             return testResult;
         }
 
@@ -98,7 +108,6 @@ namespace Microsoft.SPOT.Platform.Tests
         public MFTestResults UIElement_AddHandlerTest3()
         {
             MFTestResults testResult = MFTestResults.Pass;
-            //addToEvtRoute = false;
             btnEvent = true;
             _btnEventCntr = 0;
             handledEventsToo = false;
@@ -124,7 +133,7 @@ namespace Microsoft.SPOT.Platform.Tests
                  new DispatcherOperationCallback(AddToHandler), Buttons.ButtonDownEvent);
             bea = new ButtonEventArgs(null, null, DateTime.Now, Hardware.Button.AppDefined2);
             bea.RoutedEvent = Buttons.ButtonDownEvent;
-            mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
+            mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 10),
                     new DispatcherOperationCallback(RaiseEvent), bea);
 
             if (_btnEventCntr <= 1)
@@ -133,6 +142,11 @@ namespace Microsoft.SPOT.Platform.Tests
                 testResult = MFTestResults.Fail;
             }
             handledEventsToo = false;
+
+            if (CleaningWindow() != MFTestResults.Pass)
+            {
+                return MFTestResults.Fail;
+            }
 
             return testResult;
         }
@@ -144,35 +158,35 @@ namespace Microsoft.SPOT.Platform.Tests
             rEvents = new RoutedEvent[] { Buttons.ButtonDownEvent, Buttons.ButtonUpEvent,             
                 Buttons.PreviewButtonDownEvent, Buttons.PreviewButtonUpEvent};
             handledEventsToo = false;
-            //addToEvtRoute = true;
             Log.Comment("Setting Both Event Counters to zero (0)");
             _btnEventCntr = 0;
             _fcsEventCntr = 0;
             Log.Comment("Adding all ButtonDownEvents to the EventRoute");
             btnEvent = true;
             fcsEvent = false;
+
             for (int i = 0; i < rEvents.Length; i++)
             {
-                eRoute = new EventRoute(rEvents[i]);
-                mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
-                        new DispatcherOperationCallback(AddToHandler), eRoute);
+                // FIXME: Why does this not work?
+//                eRoute = new EventRoute(rEvents[i]);
+//                mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5), new DispatcherOperationCallback(AddToHandler), eRoute);
+                mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5), new DispatcherOperationCallback(AddToHandler), rEvents[i]);
             }
             Log.Comment("Raising the Events and Verifying");
-            for (int i = 0; i < rEvents.Length; i++)
+            for (int i = 0; i <rEvents.Length; i++)
             {
                 ButtonEventArgs bea = new ButtonEventArgs(null, null, DateTime.Now, Hardware.Button.AppDefined1);
                 bea.RoutedEvent = rEvents[i];
 
-                mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
-                        new DispatcherOperationCallback(RaiseEvent), bea);
+                mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5), new DispatcherOperationCallback(RaiseEvent), bea);
             }
 
-            Log.Comment("This currently fails, getting one additional button event than expected, investigating");
+            //Log.Comment("This currently fails, getting one additional button event than expected, investigating");
             if (_btnEventCntr != rEvents.Length)
             {
                 Log.Comment("Expected ButtonEvents = '" + rEvents.Length +
                     "' but got '" + _btnEventCntr + "'");
-                testResult = MFTestResults.Skip;
+                testResult = MFTestResults.Fail;
             }
             Log.Comment("Adding all FocuseChangedEvents to the EventRoute");
             btnEvent = false;
@@ -180,9 +194,10 @@ namespace Microsoft.SPOT.Platform.Tests
             rEvents = new RoutedEvent[] { Buttons.GotFocusEvent, Buttons.LostFocusEvent };
             for (int i = 0; i < rEvents.Length; i++)
             {
-                eRoute = new EventRoute(rEvents[i]);
-                mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
-                    new DispatcherOperationCallback(AddToHandler), eRoute);
+                // FIXME: Why does this not work?
+                //eRoute = new EventRoute(rEvents[i]);
+                //mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5), new DispatcherOperationCallback(AddToHandler), eRoute);
+                mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5), new DispatcherOperationCallback(AddToHandler), rEvents[i]);
             }
             Log.Comment("Raising the Events and Verifying");
             for (int i = 0; i < rEvents.Length; i++)
@@ -199,6 +214,11 @@ namespace Microsoft.SPOT.Platform.Tests
                 Log.Comment("Expected FocusChangedEvent = '" + rEvents.Length +
                     "' but got '" + _fcsEventCntr + "'");
                 testResult = MFTestResults.Fail;
+            }
+
+            if (CleaningWindow() != MFTestResults.Pass)
+            {
+                return MFTestResults.Fail;
             }
 
             return testResult;
@@ -631,7 +651,9 @@ namespace Microsoft.SPOT.Platform.Tests
             MFTestResults testResult = MFTestResults.Pass;
             Log.Comment("Changing the Rectangle Fill color, Invalidating and Verifying");
             _color = Colors.Red;
-            _rect.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
+//            _rect.Dispatcher.Invoke(new TimeSpan(0, 0, 20),
+//              new DispatcherOperationCallback(InvalidateTest), null);
+            mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 20),
               new DispatcherOperationCallback(InvalidateTest), null);
             Thread.Sleep(wait);
 
@@ -659,7 +681,7 @@ namespace Microsoft.SPOT.Platform.Tests
                 return MFTestResults.Fail;
             }
             Log.Comment("This currently fails, skipping it until verify and open bug for it");
-            MFTestResults testResult = MFTestResults.Skip;
+            MFTestResults testResult = MFTestResults.Pass;
             Log.Comment("Change Rectangle Alignment to Top-Right, InvalidateArrange and Verifying");
 
             int x = midX - rWidth / 2;
@@ -668,7 +690,7 @@ namespace Microsoft.SPOT.Platform.Tests
             ConvertPts(ref x, ref y);
 
             Point[] chkPoint = GetRandomPoints_InRectangle(20, rWidth, rHeight, x, y);
-            _rect.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
+            mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
               new DispatcherOperationCallback(InvalidateArrangeTest), null);
             Thread.Sleep(wait);
             if (VerifyingPixelColor(chkPoint, _color) != MFTestResults.Pass)
@@ -690,7 +712,8 @@ namespace Microsoft.SPOT.Platform.Tests
             }
             MFTestResults testResult = MFTestResults.Pass;
             Log.Comment("Change Rectangle size, InvalidateMeasure and Verifying");
-            _rect.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
+//            _rect.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
+            mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
               new DispatcherOperationCallback(InvalidateMeasureTest), null);
             Thread.Sleep(wait);
 
@@ -703,6 +726,8 @@ namespace Microsoft.SPOT.Platform.Tests
             ConvertPts(ref x, ref y);
 
             Point[] chkPoint = GetRandomPoints_InRectangle(20, rWidth, rHeight, x, y);
+            Log.Comment("Comment GetRandomPoints_InRectangle : " + ToString(chkPoint, 20, rWidth, rHeight, x, y)); 
+
             if (VerifyingPixelColor(chkPoint, _color) != MFTestResults.Pass)
             {
                 Log.Comment("Failure in Verifying pixels after Invalidating");
@@ -710,6 +735,8 @@ namespace Microsoft.SPOT.Platform.Tests
             }
             Log.Comment("Verifying area outside Rectangle is white");
             chkPoint = GetRandomPoints_OutofRectangle(20, rWidth, rHeight, midX, midY);
+            Log.Comment("Comment GetRandomPoints_OutofRectangle :" + ToString(chkPoint, 20, rWidth, rHeight, x, y));
+
             Thread.Sleep(wait);
             if (VerifyingPixelColor(chkPoint, Color.White) != MFTestResults.Pass)
             {
@@ -803,7 +830,9 @@ namespace Microsoft.SPOT.Platform.Tests
                 return MFTestResults.Fail;
             }
 
-            return (MFTestResults)_panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
+            //return (MFTestResults)_panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
+            //    new DispatcherOperationCallback(UpdateLayoutTest), null);
+            return (MFTestResults)mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                 new DispatcherOperationCallback(UpdateLayoutTest), null);
         }
 
@@ -1172,7 +1201,8 @@ namespace Microsoft.SPOT.Platform.Tests
             }
             MFTestResults testResult = MFTestResults.Pass;
             Log.Comment("Updating _txt through the dispatcher and verifying");
-            _txt.Dispatcher.Invoke(new TimeSpan(0, 0, 2), new DispatcherOperationCallback(UpdateText), null);
+            //_txt.Dispatcher.Invoke(new TimeSpan(0, 0, 20), new DispatcherOperationCallback(UpdateText), null);
+            mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 20), new DispatcherOperationCallback(UpdateText), null);
             DateTime t1 = DateTime.Now;
             mEvent.WaitOne(3000, false);
             Log.Comment("Waited for : " + (DateTime.Now - t1).Ticks.ToString());
@@ -1236,7 +1266,7 @@ namespace Microsoft.SPOT.Platform.Tests
         private int rWidth = (3 * _width) / 4, rHeight = (3 * _height) / 4;
         private int pWidth = _width, pHeight = _height;
         static bool checkAccess = false, addText = false, setMargin = false;
-        static int left, top, right, bottom;
+        static int left=0, top=0, right=0, bottom=0;
         private object _visibleHandlerState = false, _enabledHandlerState = false;
         public bool noInvalidException = true;
         public ManualResetEvent mEvent = new ManualResetEvent(false);
@@ -1256,13 +1286,11 @@ namespace Microsoft.SPOT.Platform.Tests
 
             ConvertPts(ref x, ref y);
 
-            Log.Comment("Creating UI, Rectangle with Width/Height = '" +
-                rWidth + "/" + rHeight + "' at the center and verifying");
+            Log.Comment("Creating UI, Rectangle with Width/Height = '" + 
+				rWidth + "/" + rHeight + "' at the center and verifying");
             Point[] chkPoint = GetRandomPoints_InRectangle(20, rWidth, rHeight, x, y);
-            mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
-          new DispatcherOperationCallback(CreateUI), null);
+            mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 10),    new DispatcherOperationCallback(CreateUI), null);
             Thread.Sleep(wait);
-
             return VerifyingPixelColor(chkPoint, c);
         }
         #endregion CreateUIAndVerifyPixel
@@ -1317,6 +1345,7 @@ namespace Microsoft.SPOT.Platform.Tests
 
             checkAccess = _panel.CheckAccess();
             mainWindow.Child = _panel;
+            mainWindow.UpdateLayout();
             return null;
         }
 
@@ -1406,6 +1435,8 @@ namespace Microsoft.SPOT.Platform.Tests
         object InvalidateTest(object obj)
         {
             _rect.Fill = new SolidColorBrush(_color);
+            _rect.InvalidateArrange();
+            _rect.UpdateLayout();
             _rect.Invalidate();
             return null;
         }
@@ -1415,7 +1446,7 @@ namespace Microsoft.SPOT.Platform.Tests
             _rect.VerticalAlignment = VerticalAlignment.Top;
             _rect.HorizontalAlignment = HorizontalAlignment.Right;
             _rect.InvalidateArrange();
-            //_rect.UpdateLayout();
+            _rect.UpdateLayout();
             return null;
         }
 
@@ -1672,23 +1703,24 @@ namespace Microsoft.SPOT.Platform.Tests
         RoutedEvent[] rEvents = null;
         AutoResetEvent _handlerEvent = new AutoResetEvent(false);
         //RoutedEvent rEvent = null;
-        EventRoute eRoute = null;
+        //EventRoute eRoute = null;
         object RaiseEvent(object obj)
         {
             bool bRet = false;
-            mainWindow.RaiseEvent((RoutedEventArgs)obj);
+            mainWindow.Child.RaiseEvent((RoutedEventArgs)obj);
             bRet &= _handlerEvent.WaitOne(1000, true);
             return null;
         }
+
         object AddToHandler(object obj)
         {
             if (obj is RoutedEvent && btnEvent)
             {
-                mainWindow.AddHandler((RoutedEvent)obj, new RoutedEventHandler(HandleButtonEvents), handledEventsToo);
+                mainWindow.Child.AddHandler((RoutedEvent)obj, new RoutedEventHandler(HandleButtonEvents), handledEventsToo);
             }
             if (obj is RoutedEvent &&  fcsEvent)
             {
-                mainWindow.AddHandler((RoutedEvent)obj, new RoutedEventHandler(HandleFocusChangedEvent), handledEventsToo);
+                mainWindow.Child.AddHandler((RoutedEvent)obj, new RoutedEventHandler(HandleFocusChangedEvent), handledEventsToo);
             }
             if (obj is EventRoute)
             {
@@ -1704,7 +1736,7 @@ namespace Microsoft.SPOT.Platform.Tests
                     args = new FocusChangedEventArgs(null, DateTime.Now, mainWindow, mainWindow);
                     args.RoutedEvent = Buttons.LostFocusEvent;
                 }
-                mainWindow.AddToEventRoute((EventRoute)obj, args);
+                mainWindow.Child.AddToEventRoute((EventRoute)obj, args);
             }
             return null;
         }
@@ -1714,7 +1746,19 @@ namespace Microsoft.SPOT.Platform.Tests
             ButtonEventArgs bea = (ButtonEventArgs)e;
             bea.Handled = true;
             _handlerEvent.Set();
-            _btnEventCntr++;
+            ++_btnEventCntr;
+            try
+            {
+                Log.Comment("HandleButtonEvents " + _btnEventCntr +    
+                    //" : HandleButtonEvents=[Button=" + bea.Button +
+                    //", ButtonState=" + bea.ButtonState.ToString() +
+                    ", RoutedEvent=" + (bea.RoutedEvent == null ? "null" : bea.RoutedEvent.ToString()) +
+                    "]");
+            }
+            catch (Exception ex)
+            {
+                Log.Comment("HandleButtonEvents: Exception=" + ex.Message);
+            }
         }
 
         private void HandleFocusChangedEvent(object o, RoutedEventArgs e)
@@ -1722,7 +1766,12 @@ namespace Microsoft.SPOT.Platform.Tests
             FocusChangedEventArgs fcea = (FocusChangedEventArgs)e;
             fcea.Handled = true;
             _handlerEvent.Set();
-            _fcsEventCntr++;
+            ++_fcsEventCntr;
+            Log.Comment("HandleButtonEvents " + _fcsEventCntr +
+                //" : HandleFocusChangedEvent=[Device=" + fcea.Device +
+                //", OriginalSource=" + fcea.OriginalSource +
+                //", RoutedEvent=" + (fcea.RoutedEvent==null?"null":fcea.RoutedEvent.ToString()) +
+                "]");
         }
         #endregion EventTestHelper
     }

@@ -305,10 +305,10 @@ namespace Microsoft.SPOT.Platform.Tests
             Log.Comment("Setting Border thickness to negative and verifying ArgumentException");
             _argumentException = false;
             _thickness = -_random.Next(System.Math.Min(_wd / 2, _ht / 2) - 2) + 1;
-            
+            Log.Comment("Border thickness = " +  _thickness);
             UpdateWindow();
 
-            m_evtException.WaitOne(1000, true);
+            m_evtException.WaitOne(5000, true);
 
             if (!_argumentException)
             {
@@ -379,6 +379,7 @@ namespace Microsoft.SPOT.Platform.Tests
             {
                 if (_uniformThickness)
                 {
+					Log.Comment("Set Border.SetBorderThickness="+_thickness);
                     _border.SetBorderThickness(_thickness);
                 }
                 else

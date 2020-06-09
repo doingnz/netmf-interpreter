@@ -1,0 +1,3 @@
+set FLAVOR_MEMORY=RAM
+set MEMORY=RAM
+

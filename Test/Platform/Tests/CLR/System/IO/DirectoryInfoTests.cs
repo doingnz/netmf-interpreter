@@ -1,3 +1,4 @@
+//#define FAT_FS__DO_NOT_UPDATE_FILE_ACCESS_TIME
 /*---------------------------------------------------------------------
 * FileTests.cs - file description
 * Version: 1.0
@@ -318,6 +319,8 @@ namespace Microsoft.SPOT.Platform.Tests
             return (testResult ? MFTestResults.Pass : MFTestResults.Fail);
         }
 
+#if !FAT_FS__DO_NOT_UPDATE_FILE_ACCESS_TIME
+
         [TestMethod]
         public MFTestResults DirectoryInfoTest_LastAccessTime0()
         {
@@ -386,7 +389,7 @@ namespace Microsoft.SPOT.Platform.Tests
 
             return (testResult ? MFTestResults.Pass : MFTestResults.Fail);
         }
-
+#endif
         [TestMethod]
         public MFTestResults DirectoryInfoTest_GetFiles0()
         {

@@ -93,7 +93,8 @@ namespace Microsoft.SPOT.Platform.Tests
         protected static Brush _brush = null;
         protected static Color _color;
         protected static Font _font = Resources.GetFont(Resources.FontResources.NinaB);
-        protected static AutoResetEvent autoEvent = new AutoResetEvent(false);
+       // protected static AutoResetEvent autoEvent = new AutoResetEvent(false);
+        protected static ManualResetEvent autoEvent = new ManualResetEvent(false);
         protected static int _width = SystemMetrics.ScreenWidth;
         protected static int _height = SystemMetrics.ScreenHeight;
         protected static int midX = _width / 2;
@@ -140,8 +141,9 @@ namespace Microsoft.SPOT.Platform.Tests
             Log.Comment("Clearing The Panel and Verifying");
             try
             {
-                
-                Master_Media.mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
+                autoEvent.Reset();
+
+                Master_Media.mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 15),
                                         new DispatcherOperationCallback(ClearPanel), null);
                 
                 autoEvent.WaitOne();

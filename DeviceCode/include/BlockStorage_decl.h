@@ -1,6 +1,20 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright [2015] [Mountaineer]
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 #include <CPU_EBIU_decl.h>
 
@@ -271,8 +285,8 @@ struct BlockRegionInfo
 {
     UINT32      Size()                                const { return (NumBlocks * BytesPerBlock);            }
     ByteAddress BlockAddress(UINT32 blockIndex)       const { return (Start + (blockIndex * BytesPerBlock)); }
-    UINT32      OffsetFromBlock(UINT32 Address)       const { return ((Address - Start) % BytesPerBlock);    }
-    UINT32      BlockIndexFromAddress(UINT32 Address) const { return ((Address - Start) / BytesPerBlock);    }
+    UINT32      OffsetFromBlock(ByteAddress Address)       const { return ((Address - Start) % BytesPerBlock);    }
+    UINT32      BlockIndexFromAddress(ByteAddress Address) const { return ((Address - Start) / BytesPerBlock);    }
 
     ByteAddress     Start;                  // Starting Sector address
     UINT32          NumBlocks;              // total number of blocks in this region
@@ -596,14 +610,15 @@ struct IBlockStorageDevice
 //
 // Remarks:
 //   The design pattern here effectively mimics a C++ class
-//   with virtuals. The reason virtuals are not used is that
+//   with virtuals. THe reason virtuals are not used is that
 //   the .NET MF supports a wide variety of compiler/Linker
-//   tool chains and some of them bring in a large Run-time
+//   tool chains and soime of them bring in a large Run-time
 //   library footprint when Certain C++ language features are
 //   used. Since a major goal of the .NET MF is to reduce
 //   code footprint we avoid anything that brings in additional
 //   library code. 
 //
+
 
 struct BlockStorageDevice : public HAL_DblLinkedNode<BlockStorageDevice>
 {

@@ -160,7 +160,7 @@
     <value xml:space="preserve">+</value>
   </data>
   <data name="ShortDatePattern">
-    <value xml:space="preserve">MM/dd/yyyy</value>
+    <value xml:space="preserve">yyyy/MM/dd</value>
   </data>
   <data name="ShortTimePattern">
     <value xml:space="preserve">HH:mm</value>

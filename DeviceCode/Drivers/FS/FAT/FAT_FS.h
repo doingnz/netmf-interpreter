@@ -1,5 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright [2015] [Mountaineer]
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef _FAT_FS_H_
@@ -7,6 +20,7 @@
 
 #include "tinyhal.h"
 #include "FS_decl.h"
+#include "ExtBlockStorage_decl.h"
 
 #ifdef _DEBUG
 #ifndef FAT_FS__VALIDATE_READONLY_CACHELINE
@@ -817,7 +831,7 @@ private:
     {
         BYTE*  m_buffer;
         UINT32 m_begin;
-        UINT32 m_bsByteAddress;
+        UINT64 m_bsByteAddress;
         UINT32 m_flags;
 #ifdef FAT_FS__VALIDATE_READONLY_CACHELINE
         UINT32 m_crc;
@@ -853,10 +867,10 @@ private:
 
     UINT32    m_LRUCounter;
 
-    UINT32    m_baseByteAddress;
+    UINT64    m_baseByteAddress;
     UINT32    m_sectorsPerLine;
 
-    BlockStorageDevice* m_blockStorageDevice;
+    ExtBlockStorageDevice* m_blockStorageDevice;
     UINT32              m_bytesPerSector;
     UINT32              m_sectorCount;
     HAL_COMPLETION      m_flushCompletion;
@@ -868,7 +882,7 @@ private:
     static void OnFlushCallback(void* arg);
 
 public:
-    void Initialize( BlockStorageDevice* blockStorageDevice, UINT32 bytesPerSector, UINT32 baseAddress, UINT32 sectorCount );
+    void Initialize( ExtBlockStorageDevice* blockStorageDevice, UINT32 bytesPerSector, UINT64 baseAddress, UINT32 sectorCount );
     void Uninitialize();
 
     BYTE* GetSector( UINT32 sectorIndex, BOOL forWrite );
@@ -885,7 +899,7 @@ struct FAT_LogicDisk
 {
 private:
     UINT64 m_diskSize;      //when initialize, get disk size by all BLOCKTYPE_FILESYSTEM blocks in block map
-    UINT32 m_baseAddress;   //BLOCKTYPE_FILESYSTEM blocks begin address, set base address for readsector() & writesector()
+    UINT64 m_baseAddress;   //BLOCKTYPE_FILESYSTEM blocks begin address, set base address for readsector() & writesector()
     UINT32 m_sectorCount;   //all sectors count
 
     /////////////////////////////////////////////////////////
@@ -923,7 +937,7 @@ public:
     UINT32 m_sectorsPerCluster;
 
     UINT32 m_volumeId;
-    BlockStorageDevice* m_blockStorageDevice;
+    ExtBlockStorageDevice* m_blockStorageDevice;
 
     //--//
 public:

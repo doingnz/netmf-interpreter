@@ -21,13 +21,13 @@ void USB_debug_printf( const char*format, ... )
     int len = hal_vsnprintf( buffer, sizeof(buffer)-1, format, arg_ptr );
                                
     // flush existing characters
-    DebuggerPort_Flush( USART_DEFAULT_PORT );
+    DebuggerPort_Flush( USB_DEBUG_PORT);
 
     // write string
-    DebuggerPort_Write( USART_DEFAULT_PORT, buffer, len, 0 );
+    DebuggerPort_Write( USB_DEBUG_PORT, buffer, len, 0 );
 
     // flush new characters
-    DebuggerPort_Flush( USART_DEFAULT_PORT );
+    DebuggerPort_Flush( USB_DEBUG_PORT);
 
     va_end( arg_ptr );
 }

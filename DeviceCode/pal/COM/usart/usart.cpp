@@ -520,9 +520,23 @@ BOOL USART_Driver::AddCharToRxBuffer( int ComPortNum, char c )
             case XOFF:
                 State.TicksStartTxXOFF = HAL_Time_CurrentTicks();
                 CLEAR_USART_FLAG(State, HAL_USART_STATE::c_TX_XON_STATE);
+				if (!State.TxQueue.IsEmpty() && !IS_POWERSAVE_ENABLED(State))
+				{
+					// if we added chars, enable interrupts so characters will actually start flowing
+					// we could do this early, then we race each iteration, and could cause a stall,
+					// so we do this once to be efficient in the common case (buffer has room for all chars)
+					CPU_USART_TxBufferEmptyInterruptEnable(ComPortNum, FALSE);
+				}
                 return TRUE;
             case XON:
                 SET_USART_FLAG(State, HAL_USART_STATE::c_TX_XON_STATE);
+				if (!State.TxQueue.IsEmpty() && !IS_POWERSAVE_ENABLED(State))
+				{
+					// if we added chars, enable interrupts so characters will actually start flowing
+					// we could do this early, then we race each iteration, and could cause a stall,
+					// so we do this once to be efficient in the common case (buffer has room for all chars)
+					CPU_USART_TxBufferEmptyInterruptEnable(ComPortNum, TRUE);
+				}
                 return TRUE;
         }
     }

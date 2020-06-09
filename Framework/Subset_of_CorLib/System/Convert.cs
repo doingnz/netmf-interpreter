@@ -513,7 +513,7 @@ namespace System
             '8', '9', '+', '/'            /* 64 */
         };
 
-        static char[] s_rgchBase64Encoding = s_rgchBase64EncodingDefault;
+        static char[] s_rgchBase64Encoding = s_rgchBase64EncodingRFC4648; //s_rgchBase64EncodingDefault;
 
         static byte[] s_rgbBase64Decode = new byte[]
         {

@@ -581,7 +581,9 @@ BOOL           CPU_USB_StartOutput      ( USB_CONTROLLER_STATE* State, int endpo
 BOOL           CPU_USB_RxEnable         ( USB_CONTROLLER_STATE* State, int endpoint );
 BOOL           CPU_USB_GetInterruptState(                         );
 BOOL           CPU_USB_ProtectPins      ( int Controller, BOOL On );
-
+// RS: Methods to control USB HW
+BOOL           CPU_USB_StopHardware();
+BOOL           CPU_USB_ResetHardware();
 //--//
 
 #if defined(PLATFORM_WINDOWS)

@@ -10,6 +10,8 @@ using Microsoft.SPOT.Presentation;
 using Microsoft.SPOT.Presentation.Controls;
 using Microsoft.SPOT.Presentation.Media;
 
+using Microsoft.SPOT;
+
 namespace Microsoft.SPOT.Platform.Tests
 {
     public class Master_Presentation
@@ -22,6 +24,7 @@ namespace Microsoft.SPOT.Platform.Tests
 
             //wait until UI Window is created
             autoEvent.WaitOne();
+            Thread.Sleep(3000);
             string[] args = { "UIElementTests" };
             MFTestRunner runner = new MFTestRunner(args);
 
@@ -48,14 +51,14 @@ namespace Microsoft.SPOT.Platform.Tests
         {
             app = new Application();
 
-            mainWindow = CreateWindow();
+            mainWindow = CreateWindow("Presentaion Tests !");
 
             autoEvent.Set();
             // Start the application
             app.Run(mainWindow);
         }
 
-        private MyWindow CreateWindow()
+        protected MyWindow CreateWindow(string text)
         {
             // Create a window object and set its size to the
             // size of the display.
@@ -63,15 +66,24 @@ namespace Microsoft.SPOT.Platform.Tests
             mainWindow.Height = _height;
             mainWindow.Width = _width;
 
-            Text t = new Text(_font, "Presentaion Tests !");
-            t.VerticalAlignment = VerticalAlignment.Center;
-            t.HorizontalAlignment = HorizontalAlignment.Center;         
-            mainWindow.Child = t;
+            // This will create a new Text Child. Useful to addach events to. We can destroy this to remove events.
+            SetNewTextChild(text);
+
             // Set the window visibility to visible.
             mainWindow.Visibility = Visibility.Visible;
-            
+            mainWindow.Invalidate();
+                        
             return mainWindow;
         }
+
+        protected static void SetNewTextChild(string text)
+        {
+            Text t = new Text(_font, text );
+            t.VerticalAlignment = VerticalAlignment.Center;
+            t.HorizontalAlignment = HorizontalAlignment.Center;
+            mainWindow.Child = t;
+        }
+
         object ShutDownApp(object arg)
         {
             app.Shutdown();
@@ -87,7 +99,7 @@ namespace Microsoft.SPOT.Platform.Tests
         protected static MyWindow mainWindow = null;     
         protected static Font _font = Resources.GetFont(Resources.FontResources.small);
 
-        protected const int wait = 20;
+        protected const int wait = 300;
         protected static AutoResetEvent autoEvent = new AutoResetEvent(false);
         protected static int _width = SystemMetrics.ScreenWidth;
         protected static int _height = SystemMetrics.ScreenHeight;
@@ -110,7 +122,7 @@ namespace Microsoft.SPOT.Platform.Tests
             Log.Comment("Cleaning The Window and Verifying");
             try
             {
-                Master_Presentation.mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
+                Master_Presentation.mainWindow.Dispatcher.Invoke(new TimeSpan(0, 0, 10),
                                         new DispatcherOperationCallback(CleanWindow), null);
                 Thread.Sleep(wait);
             }
@@ -135,7 +147,8 @@ namespace Microsoft.SPOT.Platform.Tests
             //and setting the window background to White
             mainWindow.Child = new Text();
             mainWindow.Background = new SolidColorBrush(Color.White);
-            mainWindow.Invalidate();
+            mainWindow.InvalidateArrange();
+            //mainWindow.Invalidate();
             return null;
         }
         #endregion ClearPanel
@@ -148,6 +161,14 @@ namespace Microsoft.SPOT.Platform.Tests
         /// <returns></returns>
         protected MFTestResults VerifyingPixelColor(Point[] pts, Color _color)
         {
+
+            MFTestResults results = MFTestResults.Pass;
+
+            if (Master_Presentation.mainWindow._pBitmap == null)
+                    return MFTestResults.Fail;
+
+                
+
             for (int i = 0; i < pts.Length; i++)
             {
                 Color c = Master_Presentation.mainWindow._pBitmap.GetPixel(pts[i].x, pts[i].y);
@@ -164,11 +185,11 @@ namespace Microsoft.SPOT.Platform.Tests
 
                         Log.Comment("Failure : Expected color '" + _color.ToString() + "' but got '" +
                             c.ToString() + "' at (" + pts[i].x.ToString() + ", " + pts[i].y.ToString() + ")");
-                        return MFTestResults.Fail;
+                        results= MFTestResults.Fail;
                     }
                 }
             }
-            return MFTestResults.Pass;
+            return results;
         }
         #endregion PixelColorVerification
 
@@ -177,7 +198,7 @@ namespace Microsoft.SPOT.Platform.Tests
         /// <summary>
         /// Point class to hold a point coordinates
         /// </summary>
-        protected class Point
+        public class Point
         {
             public int x;
             public int y;
@@ -186,7 +207,40 @@ namespace Microsoft.SPOT.Platform.Tests
                 this.x = x;
                 this.y = y;
             }
+
+            public override string ToString()
+            {
+                return string.Concat("(x=" + x + ", y=" + y + ")");
+            }
+
+            public bool IsInside(int xStart, int yStart, int w, int h)
+            {
+                if ((x >= xStart) && (xStart < (xStart + w)) && (y >= yStart) && (y < (yStart + h)))
+                    return true;
+
+                return false;
+            }
         }
+
+        public static string ToString(Point[] chkPoints, int numPoints, int w, int h, int xStart, int yStart)
+        {
+            string st = string.Empty;
+            st += "Bounding Rectangle=[size=" + numPoints + (numPoints == chkPoints.Length ? " OK " : " NOT OK ") + ", w=";
+            st += w + ", h=" + h + ", xStart=" + xStart + ", yStart=" + yStart + "] ";
+            st += "Point[" + chkPoints.Length + "]=";
+            for (int i = 0; i < chkPoints.Length; i++)
+            {
+                st += chkPoints[i].ToString();
+                st += " ";
+                st += (chkPoints[i].IsInside(xStart, yStart, w, h) ? " Inside " : "Outside ");
+                if (i%4==3)st += "\n";
+            }
+
+            return st;
+        }
+
+
+
         #endregion PointClass      
 
         #region MyWindowClass

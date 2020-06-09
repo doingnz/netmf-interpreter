@@ -1,8 +1,32 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright [2015] [Mountaineer]
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const UINT64 MAX_SD_CARD_SIZE = (UINT64)4*1024*1024*1024-1;
+#ifndef _DRIVERS_SD_DECL_H_
+#define _DRIVERS_SD_DECL_H_ 1
+
+//#define SD_DEBUG
+//#define SD_DEBUG_DUMP_SECTOR
+
+#if defined(SD_DEBUG)
+#define SD_DEBUG_PRINTF debug_printf
+#else
+#define SD_DEBUG_PRINTF
+#endif
+
 
 struct SD_BLOCK_CONFIG
 {
@@ -19,7 +43,7 @@ struct SD_BL_CONFIGURATION
     BOOL                Low_Voltage_Flag;
     BlockStorageDevice* Device;
 };
-
+    
 #define CSD_CID_LENGTH        0x10
 	
 struct SD_DEVICE_REGISTERS
@@ -43,20 +67,20 @@ struct SD_BS_Driver
     #define DUMMY   0xff      
 
     #define RESPONSE_TIME_OUT     0xFFFFFFFF
-
-
+    #define RESPONSE_TIME_OUT_SHORT 1000
+    #define RESPONSE_TIME_OUT_LONGER 10000
 
     #define SCR_LENGTH            0x8
 
     #define CMD8_CHECK_PATTERN    0x000000AA
-
-	  #define CMD41_HCS_PATTERN     (1<<30)
-	  #define OCR_BUSY_BIT          0x80000000
-	  #define OCR_CCS_BIT           0x40000000
+	
+	#define CMD41_HCS_PATTERN     (1<<30)
+	#define OCR_BUSY_BIT          0x80000000
+	#define OCR_CCS_BIT           0x40000000
 
     #define SD_GO_IDLE_STATE      0x00            // CMD0
     #define SD_V2_SEND_OP_COND    0x01            // CMD1
-    #define SD_SEND_IF_COND       0x08            // CMD8
+	#define SD_SEND_IF_COND       0x08            // CMD8
     #define SD_SEND_CSD           0x09            // CMD9
     #define SD_SEND_CID           0x0A            // CMD10
     #define SD_READ_SINGLE_BLOCK  0x11            // CMD17
@@ -70,7 +94,7 @@ struct SD_BS_Driver
     #define SD_SEND_SCR           0x33            // ACMD51
     #define SD_READ_OCR           58              // ACMD58
    
-
+   
     #define SD_START_DATA_BLOCK_TOKEN   0xfe      
 
     // R1 response code
@@ -82,10 +106,10 @@ struct SD_BS_Driver
     #define R1_ERASE_SEQ_ERROR    0x10
     #define R1_ADDRESS_ERROR      0x20
     #define R1_PARAMETER_ERROR    0x40
-
-	  // R7 response code
-  	#define R7_IN_IDLE_STATUS     0x01
-	  #define R7_ILLEGAL_COOMMAND   0x05
+	
+	// R7 response code
+	#define R7_IN_IDLE_STATUS     0x01
+	#define R7_ILLEGAL_COOMMAND   0x05
 	
 
     // SD operation result 
@@ -127,6 +151,10 @@ struct SD_BS_Driver
 
     static UINT32 MaxBlockErase_uSec(void *context);
 
+    static BOOL ExtRead(void *context, UINT64 Address, UINT32 NumBytes, BYTE *pSectorBuff);
+
+    static BOOL ExtWrite(void *context, UINT64 Address, UINT32 NumBytes, BYTE *pSectorBuff, BOOL ReadModifyWrite );
+
     static BOOL ChipReadOnly(void *context, BOOL On, UINT32 ProtectionKey);
 
     static BOOL ReadProductID(void *context, BYTE *ManufacturerCode, BYTE *OEMID, BYTE *ProductName);
@@ -134,25 +162,26 @@ struct SD_BS_Driver
   private:
     static BOOL EraseSectors(SectorAddress Address, INT32 SectorCount);
     static BOOL ReadSector(SectorAddress Address, UINT32 Offset, UINT32 NumBytes, BYTE *pSectorBuff, UINT32 BytesPerSector);
-    static BOOL WriteX(void *context, ByteAddress Address, UINT32 NumBytes, BYTE *pSectorBuff, BOOL ReadModifyWrite, BOOL fIncrementDataPtr);
+    static BOOL WriteX(void *context, UINT64 Address, UINT32 NumBytes, BYTE *pSectorBuff, BOOL ReadModifyWrite, BOOL fIncrementDataPtr);
     static void InsertISR(GPIO_PIN Pin, BOOL PinState, void* Param);
     static void EjectISR(GPIO_PIN Pin, BOOL PinState, void* Param);
 
     static BYTE SPISendByte(BYTE data);
     static void SD_CsSetHigh();
     static void SD_CsSetLow();
-    static BYTE SD_SendCmdWithR1Resp(BYTE cmd, UINT32 arg, BYTE crc, BYTE expectedToken, INT32 iterations=100);
+    static BYTE SD_SendCmdWithR1Resp(BYTE cmd, UINT32 arg, BYTE crc, BYTE expectedToken, INT32 iterations= RESPONSE_TIME_OUT_SHORT);
     static BYTE SD_SendCmdWithR7Resp(BYTE cmd, UINT32 arg, BYTE *outVoltage);
     static BYTE SD_SendCmdWithR3Resp(BYTE cmd, UINT32 arg, UINT32 *pOcr);
-    static BYTE SD_CheckBusy(void);
+	static BYTE SD_CheckBusy(void);
     static BOOL ReadSectorHelper(void *context, ByteAddress StartSector, UINT32 NumSectors, BYTE *pSectorBuff, SectorMetadata *pSectorMetadata);
     static void SPISendCount(BYTE *pWrite, UINT32 WriteCount);
     static void SPIRecvCount(BYTE *pRead, UINT32 ReadCount, UINT32 Offset);
 	
-  	static BYTE SD_Cmd_GO_IDLE_STATE();
+	static BYTE SD_Cmd_GO_IDLE_STATE();
     static BOOL Get_OCR_BUSY();
-	  static BOOL Get_OCR_CCS();
+	static BOOL Get_OCR_CCS();
     static BYTE ReadOCR_R3(UINT32* pOCR);
     static BOOL SD_Cmd_SEND_IF_COND(BOOL isLowVoltageRequired, BOOL *pIs_SD_version1);
     static BOOL SD_Set_In_READY_STATUS(BOOL isHC_XC_Supported);
 };
+#endif // _DRIVERS_SD_DECL_H_

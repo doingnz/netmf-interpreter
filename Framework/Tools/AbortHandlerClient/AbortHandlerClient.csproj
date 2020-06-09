@@ -16,6 +16,7 @@
         <ProductVersion>9.0.21022</ProductVersion>
         <SchemaVersion>2.0</SchemaVersion>
         <ProjectGuid>{252A4F97-3F27-49E9-939A-A98EDDB32051}</ProjectGuid>
+	<TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     </PropertyGroup>
 
     <Import Project="$(SPOCLIENT)\tools\Targets\Microsoft.SPOT.CSharp.Host.Targets" />

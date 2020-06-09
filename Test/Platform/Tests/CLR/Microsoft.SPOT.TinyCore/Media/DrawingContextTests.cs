@@ -47,7 +47,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 _drawLine = true;
                 Log.Comment("Drawing Line b/n (" + x0.ToString() + ", " + y0.ToString() + ") and (" +
                     x1.ToString() + ", " + y1.ToString() + ") and Verifying");
-                
+
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                     new DispatcherOperationCallback(InvalidatePanel), null);
                 autoEvent.WaitOne();
@@ -74,7 +75,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 return MFTestResults.Fail;
             }
             _drawRectangle = true;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                 new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -118,9 +120,10 @@ namespace Microsoft.SPOT.Platform.Tests
 
                 _argumentException = false;
                 _drawRectangle = true;
-                
-                Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
-              new DispatcherOperationCallback(InvalidatePanel), null);
+
+                autoEvent.Reset();
+                Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 15), new DispatcherOperationCallback(InvalidatePanel), null);
+
                 autoEvent.WaitOne();
                 if (!_argumentException)
                 {
@@ -150,9 +153,10 @@ namespace Microsoft.SPOT.Platform.Tests
                 return MFTestResults.Fail;
             }
             _drawEllipse = true;
-            
-            Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
-                new DispatcherOperationCallback(InvalidatePanel), null);
+
+            autoEvent.Reset();
+            Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5), new DispatcherOperationCallback(InvalidatePanel), null);
+
             autoEvent.WaitOne();
             
             Log.Comment("Checking pixel colors on the ellipse");
@@ -191,7 +195,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 return MFTestResults.Fail;
             }
             _drawPolygon = true;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                 new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -335,7 +340,8 @@ namespace Microsoft.SPOT.Platform.Tests
             _drawEllipse = false;
             _drawPolygon = false;
             _clear = true;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
             new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -378,7 +384,8 @@ namespace Microsoft.SPOT.Platform.Tests
 
                 _argumentException = false;
                 _drawCroppedImage = true;
-                
+
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5), new DispatcherOperationCallback(InvalidatePanel), null);
 
                 autoEvent.WaitOne();
@@ -413,7 +420,8 @@ namespace Microsoft.SPOT.Platform.Tests
             Log.Comment("Drawing dc.DrawImage(null, x, y) Image on a DrawingContext");
             _nullReferenceException = false;
             _drawImage = true;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
     new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -445,7 +453,8 @@ namespace Microsoft.SPOT.Platform.Tests
             Log.Comment("dc.DrawImage(null, x, y, sourceX, sourceY, sWidth, sHeight) Image on a DrawingContext");
             _nullReferenceException = false;
             _drawCroppedImage = true;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
   new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -475,7 +484,8 @@ namespace Microsoft.SPOT.Platform.Tests
             bmp1 = Resources.GetBitmap(Resources.BitmapResources.Yellow_flower);
             Log.Comment("Drawing an Image on a DrawingContext");
             _drawImage = true;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
            new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -523,7 +533,8 @@ namespace Microsoft.SPOT.Platform.Tests
             bmp1 = Resources.GetBitmap(Resources.BitmapResources.Tom_Jerry);
             Log.Comment("Drawing a Cropped Image on a DrawingContext");
             _drawCroppedImage = true;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
            new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -568,7 +579,8 @@ namespace Microsoft.SPOT.Platform.Tests
             bmp1 = Resources.GetBitmap(Resources.BitmapResources.Green);
             Log.Comment("Drawing Green Image on a DrawingContext and verifying");
             _drawImage = true;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
            new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -601,7 +613,8 @@ namespace Microsoft.SPOT.Platform.Tests
             yDimension = bmp2.Height;
             _opacity = 128;
             _blendImage = true;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
         new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -646,7 +659,8 @@ namespace Microsoft.SPOT.Platform.Tests
             yDimension = bmp1.Height / 2;
             x0 = midX - xDimension / 2;
             y0 = midY - yDimension / 2;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
        new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -658,7 +672,8 @@ namespace Microsoft.SPOT.Platform.Tests
             wd = 0;
             ht = 0;
             y0 = midY - yDimension / 2;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
        new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -688,7 +703,8 @@ namespace Microsoft.SPOT.Platform.Tests
             }
             Log.Comment("Poping the Clipping Rectangle and Verifying");
             _popClippingRectangle = true;
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
      new DispatcherOperationCallback(InvalidatePanel), null);
             autoEvent.WaitOne();
@@ -718,7 +734,11 @@ namespace Microsoft.SPOT.Platform.Tests
             int[] dimensions = GetRandomDimensions(midX, midY);
             for (int i = 0; i < dimensions.Length / 2; i++)
             {
-                // at least one dimension shoudl be negative
+                // at least one dimension should be negative
+                // neither should be zero (cannot have negative zero!)
+                if (xDimension == 0) xDimension = 1;
+                if (yDimension == 0) yDimension = 1;
+
                 if (i == 2)
                 {
                     xDimension = -dimensions[i];
@@ -732,7 +752,8 @@ namespace Microsoft.SPOT.Platform.Tests
 
                 _argumentException = false;
                 _pushClippingRectangle = true;
-                
+
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5), new DispatcherOperationCallback(InvalidatePanel), null);
                 autoEvent.WaitOne();
                 if (!_argumentException)
@@ -819,7 +840,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 _str = strArr[i];
 
                 _drawText = true;
-                
+
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
        new DispatcherOperationCallback(InvalidatePanel), null);
                 autoEvent.WaitOne();

@@ -1,6 +1,20 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright [2015] [Mountaineer]
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 #include <tinyhal.h>
 #include "FAT_FS.h"
@@ -169,19 +183,17 @@ BOOL FAT_LogicDisk::MountDisk()
 
     while(TRUE)
     {
-        if(!m_blockStorageDevice->Read( m_baseAddress, DEFAULT_SECTOR_SIZE, dbrBuffer ))
+        if(!m_blockStorageDevice->ExtRead( m_baseAddress, DEFAULT_SECTOR_SIZE, dbrBuffer ))
         {
             return FALSE;
         }
 
         if(dbr->IsValid( &isFAT16 ))
         {
-
             break;
         }
         else if(triedMBR)
         {
-
             return FALSE;
         }
         
@@ -190,16 +202,14 @@ BOOL FAT_LogicDisk::MountDisk()
 
         if(!mbr->IsValid())
         {
-
             return FALSE;
         }
 
-        UINT32 offset = mbr->Partitions[0].Get_RelativeSector() * DEFAULT_SECTOR_SIZE;
-        UINT32 size = mbr->Partitions[0].Get_TotalSector() * DEFAULT_SECTOR_SIZE;
+        UINT64 offset = (UINT64)mbr->Partitions[0].Get_RelativeSector() * DEFAULT_SECTOR_SIZE;
+        UINT64 size = (UINT64)mbr->Partitions[0].Get_TotalSector() * DEFAULT_SECTOR_SIZE;
 
         if(offset + size > m_diskSize)
         {
-
             return FALSE;
         }
 
@@ -224,7 +234,7 @@ BOOL FAT_LogicDisk::MountDisk()
     }
 
     //Sanity check for the sizes
-    if(((UINT64)m_diskSize < (UINT64)(m_totalSectorCount * m_bytesPerSector)) || // Actual disk size has to be greater or equal to the size used by the FS
+    if(((UINT64)m_diskSize < ((UINT64)m_totalSectorCount * m_bytesPerSector)) || // Actual disk size has to be greater or equal to the size used by the FS
        (fatEntriesCount < (m_totalClusterCount + CLUSTER_START - 1))) // FAT needs to fit all the clusters
     {
         ASSERT(FALSE);
@@ -533,14 +543,14 @@ HRESULT FAT_LogicDisk::FormatHelper( LPCSTR volumeLabel, UINT32 parameters )
     UINT32 sectorsNeeded = dbr->Get_BPB_RsvdSecCnt() + (dbr->BPB_NumFATs * fatSz) + rootDirSectors; //BPB_RsvdSecCnt BPB_NumFATs * FATSz + RootDirSectors
     if(!useFAT16) sectorsNeeded += dbr->BPB_SecPerClus; // for the FAT32 root directory
 
-    if(!m_blockStorageDevice->Memset( m_baseAddress, 0, sectorsNeeded * DEFAULT_SECTOR_SIZE ))
+    if(!m_blockStorageDevice->Memset( (ByteAddress)m_baseAddress, 0, sectorsNeeded * DEFAULT_SECTOR_SIZE ))
     {
          return CLR_E_FILE_IO;
     }
 
 
     // Write the first DBR
-    if(!m_blockStorageDevice->Write( m_baseAddress, DEFAULT_SECTOR_SIZE, buffer, TRUE ))
+    if(!m_blockStorageDevice->ExtWrite( m_baseAddress, DEFAULT_SECTOR_SIZE, buffer, TRUE ))
     {
         return CLR_E_FILE_IO;
     }
@@ -549,7 +559,7 @@ HRESULT FAT_LogicDisk::FormatHelper( LPCSTR volumeLabel, UINT32 parameters )
     if(!useFAT16)
     {
 
-        if(!m_blockStorageDevice->Write( m_baseAddress + 6 * DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, buffer, TRUE ))
+        if(!m_blockStorageDevice->ExtWrite( m_baseAddress + 6 * DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, buffer, TRUE ))
         {
         
             return CLR_E_FILE_IO;
@@ -559,8 +569,8 @@ HRESULT FAT_LogicDisk::FormatHelper( LPCSTR volumeLabel, UINT32 parameters )
         
         fsInfo->Initialize( m_totalClusterCount - 1, 3 );
 
-        if(!m_blockStorageDevice->Write( m_baseAddress + 1 * DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, buffer, TRUE ) ||
-           !m_blockStorageDevice->Write( m_baseAddress + 7 * DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, buffer, TRUE ))
+        if(!m_blockStorageDevice->ExtWrite( m_baseAddress + 1 * DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, buffer, TRUE ) ||
+           !m_blockStorageDevice->ExtWrite( m_baseAddress + 7 * DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, buffer, TRUE ))
         {
 
             return CLR_E_FILE_IO;
@@ -604,8 +614,8 @@ HRESULT FAT_LogicDisk::FormatHelper( LPCSTR volumeLabel, UINT32 parameters )
     }
 
 
-    if(!m_blockStorageDevice->Write( m_baseAddress + m_FATBaseSector[0] * DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, buffer, TRUE ) ||
-       !m_blockStorageDevice->Write( m_baseAddress + m_FATBaseSector[1] * DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, buffer, TRUE ))
+    if(!m_blockStorageDevice->ExtWrite( m_baseAddress + m_FATBaseSector[0] * DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, buffer, TRUE ) ||
+       !m_blockStorageDevice->ExtWrite( m_baseAddress + m_FATBaseSector[1] * DEFAULT_SECTOR_SIZE, DEFAULT_SECTOR_SIZE, buffer, TRUE ))
     {
     
         return CLR_E_FILE_IO;
@@ -631,7 +641,7 @@ HRESULT FAT_LogicDisk::GetDiskVolLab( LPSTR label )
 
     UINT8 buffer[DEFAULT_SECTOR_SIZE];
 
-    if(m_blockStorageDevice->Read( m_baseAddress, DEFAULT_SECTOR_SIZE, buffer ))
+    if(m_blockStorageDevice->ExtRead( m_baseAddress, DEFAULT_SECTOR_SIZE, buffer ))
     {
         FAT_DBR* dbr = (FAT_DBR*)buffer;
 
@@ -667,7 +677,7 @@ HRESULT FAT_LogicDisk::GetDiskVolLab( LPSTR label )
 // Returns:
 UINT64 FAT_LogicDisk::GetDiskTotalSize()
 {
-    return (m_sectorCount - m_firstDataSector) * m_bytesPerSector;
+    return (UINT64)(m_sectorCount - m_firstDataSector) * m_bytesPerSector;
 }
 
 
@@ -684,7 +694,7 @@ UINT64 FAT_LogicDisk::GetDiskTotalSize()
 // Returns:
 UINT64 FAT_LogicDisk::GetDiskFreeSize()
 {
-    return m_freeCount * m_sectorsPerCluster * m_bytesPerSector; 
+    return (UINT64)m_freeCount * m_sectorsPerCluster * m_bytesPerSector; 
 }
 
 /////////////////////////////////////////////////////////
@@ -1213,7 +1223,7 @@ BOOL FAT_LogicDisk::PopulateDiskSize()
         //in next regions to find the end of BLOCKTYPE_FILESYSTEM blocks
         pBlockRegionInfo = &tmpBlockDeviceInfo->Regions[regionIndex];
 
-        m_baseAddress = pBlockRegionInfo->Start + (pBlockRegionInfo->BlockRanges[rangeIndex].StartBlock * pBlockRegionInfo->BytesPerBlock);
+        m_baseAddress = pBlockRegionInfo->Start + ((UINT64)pBlockRegionInfo->BlockRanges[rangeIndex].StartBlock * pBlockRegionInfo->BytesPerBlock);
 
         //in begin region to find the end of BLOCKTYPE_FILESYSTEM blocks
         for(j = rangeIndex; j < pBlockRegionInfo->NumBlockRanges; j++)
@@ -1263,7 +1273,7 @@ FAT_LogicDisk* FAT_LogicDisk::Initialize( const VOLUME_ID * volume )
 
 
         // Read FSINFO sector directly from device, as we might not be able to allocate memory yet if this is called during device boot up
-        if(!logicDisk->m_blockStorageDevice->Read( logicDisk->m_baseAddress + logicDisk->m_sectorFSInfo * logicDisk->m_bytesPerSector, sizeof(FAT_FSINFO), (BYTE*)&fsInfo ) || 
+        if(!logicDisk->m_blockStorageDevice->ExtRead( logicDisk->m_baseAddress + logicDisk->m_sectorFSInfo * logicDisk->m_bytesPerSector, sizeof(FAT_FSINFO), (BYTE*)&fsInfo ) || 
             !fsInfo.IsValid())
         {
 
@@ -1282,7 +1292,7 @@ FAT_LogicDisk* FAT_LogicDisk::Initialize( const VOLUME_ID * volume )
             fsInfo.Set_FSI_Free_Count((UINT32) logicDisk->m_freeCount );  
             fsInfo.Set_FSI_Nxt_free  ((UINT32) logicDisk->m_nextFree );
 
-            if(!logicDisk->m_blockStorageDevice->Write( logicDisk->m_baseAddress + logicDisk->m_sectorFSInfo * logicDisk->m_bytesPerSector, sizeof(FAT_FSINFO), (BYTE*)&fsInfo, TRUE ))
+            if(!logicDisk->m_blockStorageDevice->ExtWrite( logicDisk->m_baseAddress + logicDisk->m_sectorFSInfo * logicDisk->m_bytesPerSector, sizeof(FAT_FSINFO), (BYTE*)&fsInfo, TRUE ))
             {
                 goto OnError;
             }
@@ -1320,7 +1330,7 @@ void FAT_LogicDisk::PopulateFreeCount()
     m_nextFree  = 0;
 
     // try to read the first byte of the root directory sector
-    if(!m_blockStorageDevice->Read( m_baseAddress + m_rootSectorStart * m_bytesPerSector, 4, buffer ))
+    if(!m_blockStorageDevice->ExtRead( m_baseAddress + (UINT64)m_rootSectorStart * m_bytesPerSector, 4, buffer ))
     {
         m_freeCount = 0xFFFFFFFF;
         m_nextFree = 0;
@@ -1346,7 +1356,7 @@ void FAT_LogicDisk::PopulateFreeCount()
 
     // Brute force method: traverse through the entire FAT table
     
-    UINT32 startAddress = m_baseAddress + m_FATBaseSector[0] * m_bytesPerSector;
+    UINT64 startAddress = m_baseAddress + m_FATBaseSector[0] * m_bytesPerSector;
     
     UINT32 c = 0;
     UINT32 lastIndex = m_totalClusterCount + CLUSTER_START - 1;
@@ -1355,7 +1365,7 @@ void FAT_LogicDisk::PopulateFreeCount()
 
     while(TRUE)
     {
-        if(!m_blockStorageDevice->Read( startAddress, DEFAULT_SECTOR_SIZE, buffer ))
+        if(!m_blockStorageDevice->ExtRead( startAddress, DEFAULT_SECTOR_SIZE, buffer ))
         {
             m_freeCount = 0xFFFFFFFF;
             m_nextFree = 0;
@@ -1855,7 +1865,7 @@ BOOL FAT_LogicDisk::InitDisk( const VOLUME_ID* volume )
     }
     
     m_volumeId           = volume->volumeId;
-    m_blockStorageDevice = volume->blockStorageDevice;
+    m_blockStorageDevice = (ExtBlockStorageDevice*)volume->blockStorageDevice;
 
     if(!PopulateDiskSize())
     {

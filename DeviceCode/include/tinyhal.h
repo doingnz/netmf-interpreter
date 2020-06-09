@@ -734,7 +734,8 @@ void IDelayLoop2( int iterations );
 #include "smartptr_irq.h"
 
 //--//
-
+								 
+#if defined(CORTEX_M4) 
 #if !defined(PLATFORM_WINDOWS)
 extern "C" INT32 InterlockedIncrement( volatile LONG* lpAddend );
 extern "C" INT32 InterlockedDecrement( volatile LONG* lpAddend );
@@ -743,7 +744,10 @@ extern "C" INT32 InterlockedCompareExchange( LONG* Destination, LONG Exchange, L
 extern "C" INT32 InterlockedExchangeAdd( volatile LONG* Addend, LONG Value );
 extern "C" INT32 InterlockedOr( volatile LONG* Destination, LONG Flag );
 extern "C" INT32 InterlockedAnd( volatile LONG* Destination, LONG Flag );
-#endif // PLATFORM_WINDOWS
+#endif // PLATFORM_WINDOWS   
+#else
+#include "Interlocked.h"
+#endif //CORTEX_M4
 
 struct OpaqueQueueNode
 {
@@ -1538,6 +1542,10 @@ extern bool g_fDoNotUninitializeDebuggerPort;
 #include <drivers.h>
 #include <tinybooterentry.h>
 
+extern "C"
+{
+	unsigned int HAL_getRandomessSeed();
+}
 //--//
 
 #endif  // _TINYHAL_H_

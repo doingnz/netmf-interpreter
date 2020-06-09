@@ -120,7 +120,7 @@ namespace Microsoft.NetMicroFramework.Tools.MFDeployTool.Engine
             Dispose(false);
         }
 
-        internal _DBG.Engine DbgEngine 
+        public _DBG.Engine DbgEngine 
         { 
             get 
             {
@@ -379,7 +379,7 @@ namespace Microsoft.NetMicroFramework.Tools.MFDeployTool.Engine
             return (m_eng != null && (!tryToConnect || m_eng.IsConnected));
         }
 
-        internal bool Connect( int timeout_ms, bool tryConnect )
+        public bool Connect( int timeout_ms, bool tryConnect )
         {
             // to use user cancel event, so that cancel button is more responsive
             int retries = m_port is _DBG.PortDefinition_Tcp ? 2 : timeout_ms/100;

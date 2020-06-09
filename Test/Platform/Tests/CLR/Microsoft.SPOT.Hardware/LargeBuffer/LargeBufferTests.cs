@@ -110,20 +110,22 @@ namespace Microsoft.SPOT.Platform.Tests
                 lb = new LargeBuffer(1024 * 1024);
                 int len = lb.Bytes.Length - 1;
 
+                // fill buffer with data in reverese order from top of buffer. 
                 for (int i = 0; i < 1000; i++)
                 {
                     lb.Bytes[len-i] = (byte)i;
                 }
 
-                lbm.MarshalBuffer(lb);
+                lbm.MarshalBuffer(lb);         // The Test implementation reverses the order of the data in the buffer as it is copied from managed to Native. 
 
-                lbm.UnMarshalBuffer(ref lb);
+                lbm.UnMarshalBuffer(ref lb);   // The copy from native to managed is not swapped. 
 
+                // for the comparison to pass, must check in reverse order. 
                 for (int i = 0; i < 1000; i++)
                 {
                     if ((byte)i != lb.Bytes[i])
                     {
-                        Log.Comment("UnMarshalBuffer should have swapped the bytes");
+                        Log.Comment("MarshalBuffer should have swapped the bytes");
                         res = MFTestResults.Fail;
                         break;
                     }

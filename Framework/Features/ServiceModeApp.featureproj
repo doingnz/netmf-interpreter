@@ -1,0 +1,20 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <FeatureName>ServiceModeApp</FeatureName>
+  </PropertyGroup>
+  <Import Condition="'$(CORE_FEATUREPROJ)'    ==''" Project="$(SPOCLIENT)\Framework\Features\core.featureproj" />
+  <ItemGroup>
+    <MMP_DAT_CreateDatabase Include="$(BUILD_TREE_CLIENT)\pe\$(ENDIANNESS)\ServiceModeApp.pe" />    
+    <RequiredManagedProjects Include="$(SPOCLIENT)\Solutions\BPPLUSR7\ServiceModeApp\ServiceModeApp.csproj" Condition="'$(AUTOMATED_BUILD)'==''" />
+  </ItemGroup>
+  <Import Condition="'$(MFUPDATE_FEATUREPROJ)'==''" Project="$(SPOCLIENT)\Framework\Features\MFUpdate.featureproj" />
+  <PropertyGroup>
+    <Description>BP+ ServiceMode Application</Description>
+    <Guid>{fde96751-f081-449d-a471-4a438575de4a}</Guid>
+    <Required>true</Required>
+    <Groups>System</Groups>
+    <SERVICEMODEAPP_FEATUREPROJ>TRUE</SERVICEMODEAPP_FEATUREPROJ>
+    <Documentation>
+    </Documentation>
+  </PropertyGroup>
+</Project>

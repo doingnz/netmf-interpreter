@@ -1,3 +1,5 @@
+//#define FAT_FS__DO_NOT_UPDATE_FILE_ACCESS_TIME
+
 /*---------------------------------------------------------------------
 * FileTests.cs - file description
 * Version: 1.0

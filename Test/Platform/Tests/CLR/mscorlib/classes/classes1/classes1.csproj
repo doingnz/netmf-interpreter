@@ -1,6 +1,12 @@
 <Project DefaultTargets="TinyCLR_Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), BuildEnv.props))\BuildEnv.props" Condition="Exists('$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), BuildEnv.props))\BuildEnv.props')" />
   <PropertyGroup>
-    <AssemblyName>Microsoft.SPOT.Platform.Tests.Classes</AssemblyName>
+    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+    <TargetFrameworkVersion>v4.4</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyName>Microsoft.SPOT.Platform.Tests.Classes1</AssemblyName>
     <OutputType>Exe</OutputType>
     <RootNamespace>Native</RootNamespace>
     <ProjectTypeGuids>{b69e3092-b931-443c-abe7-7e7b65f2a37f};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -8,6 +14,13 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{5311E955-CFD7-4237-9528-C619B65CA8D0}</ProjectGuid>
     <NoWarn>,1668, 0162, 0168, 0618, 0649</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;,MF_FRAMEWORK_VERSION_V4_4,DEBUG,TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>Microsoft.SPOT.Platform.Tests.Master1</StartupObject>
   </PropertyGroup>
   <Import Project="$(SPOCLIENT)\tools\Targets\Microsoft.SPOT.Test.CSharp.Targets" />
   <ItemGroup>

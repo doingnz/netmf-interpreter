@@ -22,17 +22,22 @@ UINT32 CPU_SystemClock( )
 
 UINT32 CPU_TicksPerSecond( )
 {
-    return 10000000; // Ticks are in 100ns intervals
+    return 10000000; // Ticks are in 100ns intervals (10 MHz)
 }
 
 UINT64 CPU_MicrosecondsToTicks( UINT64 uSec )
 {
-    return uSec * 10;
+    return uSec * 10; // Ticks are in 100ns intervals (10 MHz)
 }
 
 UINT64  CPU_MillisecondsToTicks( UINT64 mSec )
 {
-    return CPU_MicrosecondsToTicks( mSec * 1000 );
+    return CPU_MicrosecondsToTicks( mSec * 1000 ); // convert to usec, then scale using above method. 
+}
+
+UINT64  CPU_TicksToMilliseconds(UINT64 ticks)
+{
+	return ticks / CPU_MillisecondsToTicks((UINT64)1); // = ticks / (number of ticks in 1 millisecond.)
 }
 
 UINT64  CPU_MillisecondsToTicks( UINT32 mSec )

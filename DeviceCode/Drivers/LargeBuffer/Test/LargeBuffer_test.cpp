@@ -20,7 +20,7 @@ void LargeBufferTest_Completion(void* arg)
     LargeBuffer_PostEvent( (UINT16)(UINT32)arg );
 }
 
-static UINT8 s_Data[800*600*2];
+static UINT8 s_Data[4096*2];
 static int   s_LastSize = ARRAYSIZE(s_Data);
 
 INT32 LargeBuffer_GetNativeBufferSize( UINT16 marshalId )

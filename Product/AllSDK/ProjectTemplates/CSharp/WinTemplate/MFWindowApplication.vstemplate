@@ -1,11 +1,14 @@
 ﻿<VSTemplate Version="3.0.0" Type="Project" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005" xmlns:xsi="http://www.w3c.org/2001/XMLSchema-instance" schemaLocation="http://schemas.microsoft.com/developer/vstemplate/2005">
     <TemplateData>
-        <Name>Window Application</Name>
+        <Name>Window Application (.NET Micro Framework)</Name>
         <Description>A project for creating a .NET Micro Framework application with a user interface</Description>
         <Icon>Project.ico</Icon>
         <TemplateID>Microsoft.CSharp.MicroFramework.WindowApplication</TemplateID>
         <ProjectType>CSharp</ProjectType>
         <ProjectSubType></ProjectSubType>
+	<LanguageTag>csharp</LanguageTag>
+	<PlatformTag>.NET Micro Framework</PlatformTag>
+	<ProjectTypeTag>Windows</ProjectTypeTag>
         <SortOrder>1000</SortOrder>
         <CreateNewFolder>true</CreateNewFolder>
         <DefaultName>MFWindowApplication</DefaultName>

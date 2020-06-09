@@ -48,6 +48,8 @@
 #define STM32F4__SUPPORTS_XIP      TRUE
 #define STM32F4__WRITE_PROTECTED   FALSE
 #define STM32F4__SUPP_COPY_BACK    FALSE
+#define STM32F4__ERASED_BITS_ARE_ZERO  FALSE
+
 #define STM32F4__NUM_REGIONS       3
 
 const BlockRange g_STM32F4_BlockRange1[] =
@@ -100,7 +102,8 @@ const BlockDeviceInfo g_STM32F4_DeviceInfo=
         STM32F4__IS_REMOVABLE,             // BOOL Removable;
         STM32F4__SUPPORTS_XIP,             // BOOL SupportsXIP;
         STM32F4__WRITE_PROTECTED,          // BOOL WriteProtected;
-        STM32F4__SUPP_COPY_BACK            // BOOL SupportsCopyBack
+        STM32F4__SUPP_COPY_BACK,           // BOOL SupportsCopyBack  
+		STM32F4__ERASED_BITS_ARE_ZERO      // BOOL ErasedBitsAreZero
     },
     FLASH_SECTOR_WRITE_TYPICAL_TIME_USEC,  // UINT32 MaxSectorWrite_uSec;
     FLASH_BLOCK_ERASE_ACTUAL_TIME_USEC,    // UINT32 MaxBlockErase_uSec;

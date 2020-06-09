@@ -2821,9 +2821,28 @@ void CLR_RT_Assembly::Resolve_MethodDef()
             }
         }
 
+        // If this is an EntryPoint, set the global EntryPoint to the highest EntryPoint index.
+        // This assumes that Deployment assemblies are scanned last and the intention is to run
+        // Deployed assemblies before running any EntryPoint in a built-in assembly.
         if(md->flags & CLR_RECORD_METHODDEF::MD_EntryPoint)
         {
-            g_CLR_RT_TypeSystem.m_entryPoint = idx;
+        	 if (g_CLR_RT_TypeSystem.m_entryPoint.m_data == NULL)
+        	 {
+					 CLR_Debug::Printf( "\tGlobal EntryPoint in %s is %08lx\n",this->m_szName, idx);
+					 g_CLR_RT_TypeSystem.m_entryPoint = idx;
+        	 }
+        	 else
+        	 {
+        		 if (g_CLR_RT_TypeSystem.m_entryPoint.m_data < idx.m_data)
+				 {
+					 g_CLR_RT_TypeSystem.m_entryPoint = idx;
+					 CLR_Debug::Printf( "\tHigher EntryPoint in %s at %08lx\n",this->m_szName, idx);
+				 }
+        		 else
+        		 {
+        			 CLR_Debug::Printf( "\tIgnore EntryPoint in %s at %08lx\n",this->m_szName, idx);
+        		 }
+        	 }
         }
     }
 }
@@ -3706,6 +3725,8 @@ HRESULT CLR_RT_TypeSystem::ResolveAll()
 
         TINYCLR_FOREACH_ASSEMBLY(*this)
         {
+//            if(pASSM) {CLR_Debug::Printf( "FOREACH: %s\n",pASSM->m_szName); fOutput = true;};
+//
             if((pASSM->m_flags & CLR_RT_Assembly::c_Resolved) == 0)
             {
                 fNeedResolution = true;
@@ -3733,6 +3754,8 @@ HRESULT CLR_RT_TypeSystem::ResolveAll()
             }
         }
         TINYCLR_FOREACH_ASSEMBLY_END();
+
+//        CLR_Debug::Printf( "FOREACH_END\n\n"); fOutput = false;
 
         if(fOutput == true)
         {

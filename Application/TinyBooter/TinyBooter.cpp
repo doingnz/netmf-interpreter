@@ -7,7 +7,9 @@
 #include <tinybooterentry.h>
 #include "ConfigurationManager.h"
 
+
 extern bool WaitForTinyBooterUpload( INT32 &timeout_ms );
+void MicroBooter_DoTinyInstall(HAL_UPDATE_CONFIG updateCfg);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -46,6 +48,10 @@ void ApplicationEntryPoint()
     }
     if(!enterBootMode)   
     {
+		// check for NMF update
+		HAL_UPDATE_CONFIG cfg;
+		MicroBooter_DoTinyInstall(cfg); // will Reset CPU if update performed.
+		
         if(!g_eng.EnumerateAndLaunch())
         {
             timeout       = -1;

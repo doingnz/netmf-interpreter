@@ -98,3 +98,8 @@ UINT64 CPU_TicksToTime( UINT32 Ticks32 )
     return 0;
 }
 
+UINT64 CPU_TicksToMilliseconds(UINT64 Ticks)
+{
+	return 0;
+}
+

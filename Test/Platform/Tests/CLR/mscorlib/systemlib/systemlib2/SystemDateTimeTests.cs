@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+#define PAD_DATE_TIME_24HR_WITH_ZERO
 using System;
 using System.Reflection;
 using Microsoft.SPOT.Platform.Test;
@@ -240,6 +240,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 DateTime dt = GetRandomDateTime();
                 int[] intArr = new int[] { dt.Month, dt.Day, dt.Year, dt.Hour, dt.Minute, dt.Second };
                 string[] strArr = new string[] { "", "", "", "", "", "" };
+#if PAD_DATE_TIME_24HR_WITH_ZERO
+                Log.Comment("Expecting DateTime.ToString() to be 24HR and pad with '0'");
                 for (int i = 0; i < intArr.Length; i++)
                 {
                     if (i == 2)
@@ -261,7 +263,48 @@ namespace Microsoft.SPOT.Platform.Tests
                             strArr[i] += intArr[i];
                     }
                 }
+
+				
+                //NetMF Default: 
+				// string str = strArr[0] + "/" + strArr[1] + "/" + strArr[2] + " " + strArr[3] + ":" + strArr[4] + ":" + strArr[5];
+				// BPplusR7 uses ISO date formation by default. yyyy/MM/dd HH:mm:ss
+				string str = strArr[2] + "/" + strArr[0] + "/" + strArr[1] + " " + strArr[3] + ":" + strArr[4] + ":" + strArr[5];
+#else
+                bool IsPM = false;
+                Log.Comment("Expecting DateTime.ToString() to be 12Hr and no padding with '0'");
+                for (int i = 0; i < intArr.Length; i++)
+                {
+                    if (i == 2)
+                    {
+                        if (intArr[2] < 100)
+                            strArr[2] += "00" + intArr[2];
+                        else if (intArr[2] < 1000)
+                            strArr[2] += "0" + intArr[2];
+                        else
+                            strArr[2] += intArr[2];
+                    }
+                    else if (i==3)
+                    {
+                        // For the hours, do 12 hr clock.
+                        if (intArr[3] > 12)
+                        {
+                            IsPM = true;
+                            strArr[3] += (intArr[3] - 12);
+                        }
+                        else
+                        {
+                            strArr[3] += intArr[3];
+                        }
+                    }
+                    else
+                    {
+                            strArr[i] += intArr[i];
+                    }
+                }
+
                 string str = strArr[0] + "/" + strArr[1] + "/" + strArr[2] + " " + strArr[3] + ":" + strArr[4] + ":" + strArr[5];
+                str += (IsPM ? " PM" : " AM");
+#endif
                 if (dt.ToString() != str)
                 {
                     Log.Comment("Expected string '" + str + "', but got '" + dt.ToString() + "'");

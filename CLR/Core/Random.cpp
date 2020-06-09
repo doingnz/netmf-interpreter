@@ -6,6 +6,13 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if defined(PLATFORM_PULSECOR_R7)
+extern "C"
+{
+	// Defined in BPPLUSR7 TinyHall.cpp
+    unsigned int HAL_getRandomessSeed();
+}
+#endif
 
 void CLR_RT_Random::Initialize()
 {
@@ -38,6 +45,11 @@ int CLR_RT_Random::Next()
     k = v  / IQ;
     v = IA * (v - k * IQ) - IR * k; if(v < 0) v += IM;
     v = v  ^ MASK;
+
+#if defined(PLATFORM_PULSECOR_R7)
+    // Ask HAL for Hardware based randomness, including device specific differnt sequencing by using 1-wire ID to XOR output value.
+    v = v ^ HAL_getRandomessSeed();
+#endif
 
     m_next = v;
 

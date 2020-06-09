@@ -15,6 +15,8 @@
 #undef  DEBUG_TRACE
 #define DEBUG_TRACE (TRACE_ALWAYS)
 
+#undef HAL_REDUCESIZE
+
 #ifndef HAL_REDUCESIZE
 const size_t ConfigLengthCookie = offsetof( ConfigurationSector, FirstConfigBlock );
 #endif
@@ -26,12 +28,12 @@ BOOL HAL_CONFIG_BLOCK::IsGoodBlock() const
         return FALSE;
     }
 
-    DEBUG_TRACE2( TRACE_CONFIG, "read header CRC=0x%08x at %08x\r\n", HeaderCRC, (size_t)this );
+    //DEBUG_TRACE2( TRACE_CONFIG, "IsGoodBlock(): read header CRC=0x%08x at %08x\r\n", HeaderCRC, (size_t)this );
 
     // what is the header's CRC
     UINT32 CRC = SUPPORT_ComputeCRC( ((UINT8*)&DataCRC), sizeof(*this) - offsetof(HAL_CONFIG_BLOCK,DataCRC), c_Seed );
 
-    DEBUG_TRACE1(TRACE_CONFIG, "calc header CRC=0x%08x\r\n", CRC);
+    //DEBUG_TRACE1(TRACE_CONFIG,  "IsGoodBlock(): calc header CRC=0x%08x\r\n", CRC);
 
     if(CRC != HeaderCRC)
     {
@@ -44,17 +46,18 @@ BOOL HAL_CONFIG_BLOCK::IsGoodBlock() const
 
 BOOL HAL_CONFIG_BLOCK::IsGoodData() const
 {
-    DEBUG_TRACE1( TRACE_CONFIG, "read Size=%5d\r\n", Size );
+    //DEBUG_TRACE1( TRACE_CONFIG, "IsGoodData(): read Size=%5d\r\n", Size );
 
     // what is the blob's CRC
     UINT32 CRC = SUPPORT_ComputeCRC( Data(), Size, 0 );
 
-    DEBUG_TRACE1( TRACE_CONFIG, "calc blob CRC=0x%08x\r\n", CRC );
+    //DEBUG_TRACE1( TRACE_CONFIG, "IsGoodData(): calc blob CRC=0x%08x\r\n", CRC );
 
     // this indicates that this record has been marked as invalid, but still allows the helper to move
     // to the next record.
     if(CRC != DataCRC)
     {
+        //DEBUG_TRACE2( TRACE_ALWAYS, "IsGoodData(): Skipped (CRC != DataCRC) 0x%08x != 0x%08x\r\n", CRC, DataCRC );
         return FALSE;
     }
 
@@ -104,27 +107,37 @@ BOOL HAL_CONFIG_BLOCK::Prepare( const char* Name, void* Data, UINT32 Size )
 
 const HAL_CONFIG_BLOCK* HAL_CONFIG_BLOCK::Find( const char* Name, BOOL fSkipCurrent, BOOL fAppend ) const
 {
+    char ptrFindDriverName[64] = {};
     const HAL_CONFIG_BLOCK* ptr;
+	
+	if (NULL != Name) 
+	{	
+		for (int i = 0; (Name[i] != 0) && (i < 64); i++)
+		{
+			ptrFindDriverName[i] = Name[i];
+		}
 
-    if(fSkipCurrent)
-    {
-        ptr = Next();
-    }
-    else
-    {
-        ptr = this;
-    }
+	    DEBUG_TRACE2( TRACE_CONFIG, "Find(): %s  %08lx\r\n", ptrFindDriverName, (int)fSkipCurrent );
 
-    while(ptr->IsGood())
-    {
-        if(ptr->IsGoodData() && Name && strcmp( Name, ptr->DriverName ) == 0)
-        {
-            return ptr;
-        }
+	    if(fSkipCurrent)
+	    {
+	        ptr = Next();
+	    }
+	    else
+	    {
+	        ptr = this;
+	    }
 
-        ptr = ptr->Next();
-    }
+	    while(ptr->IsGood())
+	    {
+	        if(ptr->IsGoodData() && hal_strncmp_s( ptrFindDriverName, ptr->DriverName, 64 ) == 0)
+	        {
+	            return ptr;
+	        }
 
+	        ptr = ptr->Next();
+	    }
+	}
     return fAppend ? ptr : NULL;
 }
 

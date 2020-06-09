@@ -68,6 +68,11 @@ UINT64 CPU_MillisecondsToTicks( UINT32 Ticks32 )
     return Ticks;
 }
 
+UINT64  CPU_TicksToMilliseconds(UINT64 ticks)
+{
+	return ticks / CPU_MillisecondsToTicks((UINT64)1); // = ticks / (number of ticks in 1 millisecond.)
+}
+
 //--//
 
 #pragma arm section code = "SectionForFlashOperations"

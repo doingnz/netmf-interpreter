@@ -1,5 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright [2015] [Mountaineer]
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "tinyhal.h"
@@ -28,7 +41,7 @@ void FAT_SectorCache::OnFlushCallback(void* arg)
 //    m_bufferDirty--IO buffer pointer has been rewrited and need to flush
 ////////////////////////////////////////////////////////////////
 
-void FAT_SectorCache::Initialize( BlockStorageDevice* blockStorageDevice, UINT32 bytesPerSector, UINT32 baseAddress, UINT32 sectorCount )
+void FAT_SectorCache::Initialize( ExtBlockStorageDevice* blockStorageDevice, UINT32 bytesPerSector, UINT64 baseAddress, UINT32 sectorCount )
 {
     m_blockStorageDevice = blockStorageDevice;
     m_bytesPerSector     = bytesPerSector;
@@ -107,11 +120,11 @@ BYTE* FAT_SectorCache::GetSector( UINT32 sectorIndex, BOOL useLRU, BOOL forWrite
         }
 
         cacheLine->m_begin         = sectorIndex - (sectorIndex % m_sectorsPerLine);
-        cacheLine->m_bsByteAddress = m_baseByteAddress + cacheLine->m_begin * m_bytesPerSector;
+        cacheLine->m_bsByteAddress = m_baseByteAddress + (UINT64)cacheLine->m_begin * m_bytesPerSector;
         cacheLine->m_flags         = 0;
         cacheLine->SetLRUCOunter( ++m_LRUCounter );
 
-        if(!m_blockStorageDevice->Read( cacheLine->m_bsByteAddress, SECTORCACHE_LINESIZE, cacheLine->m_buffer ))
+        if(!m_blockStorageDevice->ExtRead( cacheLine->m_bsByteAddress, SECTORCACHE_LINESIZE, cacheLine->m_buffer ))
         {
             private_free( cacheLine->m_buffer );
             
@@ -262,7 +275,7 @@ void FAT_SectorCache::FlushSector( FAT_CacheLine* cacheLine, BOOL fClearDirtyBit
         if(cacheLine->IsDirty())
 #endif
         {
-            m_blockStorageDevice->Write( cacheLine->m_bsByteAddress, SECTORCACHE_LINESIZE, cacheLine->m_buffer, TRUE );
+            m_blockStorageDevice->ExtWrite( cacheLine->m_bsByteAddress, SECTORCACHE_LINESIZE, cacheLine->m_buffer, TRUE );
 
             if(fClearDirtyBit)
             {

@@ -11,6 +11,9 @@
         <TemplateID>Microsoft.VisualBasic.MicroFramework.ConsoleApplication</TemplateID>
         <ProjectType>VisualBasic</ProjectType>
         <ProjectSubType></ProjectSubType>
+	<LanguageTag>visualbasic</LanguageTag>
+	<PlatformTag>.NET Micro Framework</PlatformTag>
+	<ProjectTypeTag>console</ProjectTypeTag>
         <SortOrder>1000</SortOrder>
         <CreateNewFolder>true</CreateNewFolder>
         <DefaultName>MFConsoleApplication</DefaultName>

@@ -252,7 +252,8 @@ namespace Microsoft.SPOT.Debugger
             m_totalWaitTimeout = new TimeSpan( ( retries == 0 ? 1 : 2 * retries ) * timeout * TimeSpan.TicksPerMillisecond );
             m_callback = callback;
 
-            if( callback == null )
+            // No callback handler, therefore define manual event so we can track when this request is processed.
+            if(callback == null )
                 m_event = new ManualResetEvent( false );
         }
 
@@ -306,7 +307,7 @@ namespace Microsoft.SPOT.Debugger
             if( m_res == null && m_parent.ThrowOnCommunicationFailure )
             {
                 //do we want a separate exception for aborted requests?
-                throw new IOException( "Request failed" );
+                throw new IOException( "Request failed - aborted" );
             }
 
             return m_res;
@@ -1763,6 +1764,12 @@ namespace Microsoft.SPOT.Debugger
                     }
 
                     Thread.Sleep( timeout );
+
+                    for (int i = 5; i > 0; i--)
+                    {
+                        Debug.Print("Sleep for reset... " + i);
+                        Thread.Sleep(1000);
+                    }
                 }
             }
             finally

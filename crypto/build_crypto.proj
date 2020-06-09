@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <!-- ARM Builds -->
-  <ItemGroup Condition="'$(COMPILER_TOOL)' == 'RVDS'">
+  <ItemGroup Condition="'$(COMPILER_TOOL)' == 'RVDS' or '$(COMPILER_TOOL)' == 'DS5'">
     <CryptoLib Include="ARM">
       <Condition></Condition>
       <InstructionSet>ARM</InstructionSet>

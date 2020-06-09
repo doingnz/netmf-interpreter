@@ -14,6 +14,7 @@
         <PlatformTarget>x86</PlatformTarget>
         <ProductVersion>9.0.30729</ProductVersion>
         <SchemaVersion>2.0</SchemaVersion>
+	<TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
         <ProjectGuid>{A9351D9B-872B-455D-85D6-E672B3F3FACD}</ProjectGuid>
         <OutputType>WinExe</OutputType>
         <AppDesignerFolder>Properties</AppDesignerFolder>

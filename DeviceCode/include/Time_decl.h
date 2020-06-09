@@ -172,6 +172,7 @@ UINT32  CPU_SystemClock        (             );
 UINT32  CPU_TicksPerSecond     (             );
 UINT64  CPU_MillisecondsToTicks( UINT64 mSec );
 UINT64  CPU_MillisecondsToTicks( UINT32 mSec );
+UINT64  CPU_TicksToMilliseconds( UINT64 Ticks);
 
 // -- //
 // the following function are used in flash operations that they have to be located in the RAM. 

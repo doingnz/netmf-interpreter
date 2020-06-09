@@ -115,30 +115,30 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="FullDateTimePattern">
-    <value xml:space="preserve">dddd, MMMM dd, yyyy h:mm:ss tt</value>
+    <value xml:space="preserve">dddd, dd MMMM yyyy HH:mm:ss</value>
   </data>
   <data name="GeneralLongTimePattern">
-    <value xml:space="preserve">M/d/yyyy h:mm:ss tt</value>
+    <value xml:space="preserve">yyyy/MM/dd HH:mm:ss</value>
   </data>
   <data name="GeneralShortTimePattern">
-    <value xml:space="preserve">M/d/yyyy h:mm tt</value>
+    <value xml:space="preserve">dd/MM/yyyy HH:mm</value>
   </data>
   <data name="LongDatePattern">
-    <value xml:space="preserve">dddd, MMMM dd, yyyy</value>
+    <value xml:space="preserve">dddd, dd MMMM yyyy</value>
   </data>
   <data name="LongTimePattern">
-    <value xml:space="preserve">h:mm:ss tt</value>
+    <value xml:space="preserve">HH:mm:ss</value>
   </data>
   <data name="MonthDayPattern">
     <value xml:space="preserve">MMMM dd</value>
   </data>
   <data name="ShortDatePattern">
-    <value xml:space="preserve">M/d/yyyy</value>
+    <value xml:space="preserve">yyyy/MM/dd</value>
   </data>
   <data name="ShortTimePattern">
-    <value xml:space="preserve">h:mm tt</value>
+    <value xml:space="preserve">HH:mm</value>
   </data>
   <data name="YearMonthPattern">
-    <value xml:space="preserve">MMMM, yyyy</value>
+    <value xml:space="preserve">yyyy MMMM</value>
   </data>
 </root>

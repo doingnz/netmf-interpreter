@@ -38,6 +38,7 @@
 #define M29W640FB__SUPPORTS_XIP      TRUE
 #define M29W640FB__WRITE_PROTECTED   FALSE
 #define M29W640FB__SUPP_COPY_BACK    FALSE
+#define M29W640FB__ERASED_BITS_ARE_ZERO  FALSE
 #define M29W640FB__NUM_REGIONS       2
 
 
@@ -84,7 +85,8 @@ const BlockDeviceInfo g_M29W640FB_DeviceInfo=
         M29W640FB__IS_REMOVABLE,           // BOOL Removable;
         M29W640FB__SUPPORTS_XIP,           // BOOL SupportsXIP;
         M29W640FB__WRITE_PROTECTED,        // BOOL WriteProtected;
-        M29W640FB__SUPP_COPY_BACK          // BOOL SupportsCopyBack
+        M29W640FB__SUPP_COPY_BACK,         // BOOL SupportsCopyBack
+		M29W640FB__ERASED_BITS_ARE_ZERO    // BOOL ErasedBitsAreZero
     },
     FLASH_SECTOR_WRITE_TYPICAL_TIME_USEC,  // UINT32 MaxSectorWrite_uSec;
     FLASH_BLOCK_ERASE_ACTUAL_TIME_USEC,    // UINT32 MaxBlockErase_uSec;

@@ -48,7 +48,7 @@
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <DebugFlags>/Od /D "_DEBUG" /Zi</DebugFlags>
-    <MiscFlags Condition="'$(ManagedCode)'!='true'">$(MiscFlags) /Gm /RTC1</MiscFlags>
+    <MiscFlags Condition="'$(ManagedCode)'!='true'">$(MiscFlags) /RTC1</MiscFlags>
   </PropertyGroup>
 
   <PropertyGroup>

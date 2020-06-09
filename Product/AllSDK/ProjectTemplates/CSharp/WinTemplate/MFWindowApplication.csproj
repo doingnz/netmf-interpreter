@@ -9,6 +9,7 @@
         <ProjectGuid>$guid1$</ProjectGuid>
         <TargetFrameworkVersion>v4.4</TargetFrameworkVersion>
         <NetMfTargetsBaseDir Condition="'$(NetMfTargetsBaseDir)'==''">$(MSBuildExtensionsPath32)\Microsoft\.NET Micro Framework\</NetMfTargetsBaseDir>
+	<LangVersion>4</LangVersion>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
         <DebugSymbols>true</DebugSymbols>

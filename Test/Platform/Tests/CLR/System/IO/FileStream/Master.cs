@@ -32,7 +32,7 @@ namespace Microsoft.SPOT.Platform.Tests
                 "Write",
             };
 
-            MFTestRunner runner = new MFTestRunner(IOTests.Tests);
+            MFTestRunner runner = new MFTestRunner(IOTests.Tests, 3600000); // change Test Timeout to 1 hour. Formatting the SD card can be very slow.
         }
     }
 }

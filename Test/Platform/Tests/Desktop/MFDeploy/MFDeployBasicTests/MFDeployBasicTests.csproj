@@ -9,6 +9,7 @@
     <OutputPath>bin\Debug\</OutputPath>
     <RootNamespace>Microsoft.SPOT.Platform.Tests</RootNamespace>
     <TinyCLR_ServerOnly>true</TinyCLR_ServerOnly>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <UseVSHostingProcess>false</UseVSHostingProcess>

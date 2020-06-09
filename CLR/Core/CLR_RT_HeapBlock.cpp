@@ -1692,7 +1692,7 @@ HRESULT CLR_RT_HeapBlock::NumericRem( const CLR_RT_HeapBlock& right )
 
 #if !defined(TINYCLR_EMULATED_FLOATINGPOINT)
 
-    case DATATYPE_R4: m_data.numeric.r4  = fmod( m_data.numeric.r4, right.m_data.numeric.r4 ); break;
+    case DATATYPE_R4: m_data.numeric.r4  = (float)fmod( m_data.numeric.r4, right.m_data.numeric.r4 ); break;
 
     case DATATYPE_R8: m_data.numeric.r8  = fmod( (CLR_DOUBLE_TEMP_CAST)m_data.numeric.r8,(CLR_DOUBLE_TEMP_CAST) right.m_data.numeric.r8 ); break;
 

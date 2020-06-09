@@ -40,7 +40,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 _brush = new SolidColorBrush(Colors.Blue);
                 Log.Comment("Drawing Rectangle : w = " + pt.x.ToString() + ", h = " + pt.y.ToString());
                 Log.Comment("and filling with SolidColorBrush");
-                
+
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                     new DispatcherOperationCallback(DrawRectangle), pt);
                 autoEvent.WaitOne();
@@ -133,7 +134,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 ((ImageBrush)_brush).Stretch = Stretch.None;
                 Log.Comment("Drawing Rectangle : w = " + w.ToString() + ", h = " + h.ToString());
                 Log.Comment("filling the Rectangle with ImageBrush not stretched");
-                
+
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                     new DispatcherOperationCallback(DrawRectangle), new Point(w, h));
                 autoEvent.WaitOne();
@@ -149,7 +151,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 ((ImageBrush)_brush).Stretch = Stretch.Fill;
                 Log.Comment("Drawing Rectangle : w = " + w.ToString() + ", h = " + h.ToString());
                 Log.Comment("filling the Rectangle with ImageBrush Stretched and Verifying");
-                
+
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                     new DispatcherOperationCallback(DrawRectangle), new Point(w, h));
                 autoEvent.WaitOne();
@@ -189,7 +192,7 @@ namespace Microsoft.SPOT.Platform.Tests
                 _pen = null;
                 _brush = null;
                 Log.Comment("Drawing Rectangle, w = " + pt.x.ToString() + " h = " + pt.y.ToString());
-                
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                     new DispatcherOperationCallback(DrawRectangle), pt);
                 autoEvent.WaitOne();
@@ -325,7 +328,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 //Red - BGR 0x0000ff
                 _brush = new SolidColorBrush(Colors.Red);
                 Log.Comment("Drawing Square with s = " + pt1.x.ToString() + " and filling with Red color");
-                
+                autoEvent.Reset();
+
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                     new DispatcherOperationCallback(DrawRectangle), pt1);
                 autoEvent.WaitOne();
@@ -336,7 +340,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 _brush.Opacity = 0;
                 Log.Comment("Drawing Rectangle, w = " + pt2.x.ToString() + " h = " + pt2.y.ToString());
                 Log.Comment("and filling with Yellow color");
-                
+
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                     new DispatcherOperationCallback(DrawRectangle), pt2);
                 autoEvent.WaitOne();
@@ -353,7 +358,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 for (int i = 0; i <= (int)Bitmap.OpacityOpaque; i += 16)
                 {
                     _brush.Opacity = (ushort)i;
-                    
+
+                    autoEvent.Reset();
                     Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                    new DispatcherOperationCallback(DrawRectangle), pt2);
                     autoEvent.WaitOne();
@@ -393,7 +399,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 _brush = new SolidColorBrush(Colors.Red);
                 Log.Comment("Drawing Rectangle : w = " + pt.x.ToString() + ", h = " + pt.y.ToString());
                 Log.Comment("and filling with Red SolidColorBrush");
-                
+
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                     new DispatcherOperationCallback(DrawRectangle), pt);
                 autoEvent.WaitOne();
@@ -408,7 +415,8 @@ namespace Microsoft.SPOT.Platform.Tests
                 }
                 Log.Comment("Changing the Brush to a new BlueBrush, drawing and verifying");
                 _brush = new BlueBrush();
-                
+
+                autoEvent.Reset();
                 Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                 new DispatcherOperationCallback(DrawRectangle), pt);
                 autoEvent.WaitOne();
@@ -465,12 +473,15 @@ namespace Microsoft.SPOT.Platform.Tests
                 p2y = y2 * w / LinearGradientBrush.RelativeBoundingBoxSize;
             _brush = new LinearGradientBrush(start, end, x1, y1, x2, y2);
             Log.Comment("Drawing : Rectangle, w = " + pt.x.ToString() + " h = " + pt.y.ToString());
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                 new DispatcherOperationCallback(DrawRectangle), pt);
             autoEvent.WaitOne();
             
             Log.Comment("Verifying the color changes along the gradient");
+            
+           Thread.Sleep(10);
             _rectangle.PointToScreen(ref p1x, ref p1y);
             _rectangle.PointToScreen(ref p2x, ref p2y);
             int temp1 = p1x + 1, temp2 = p1y + 1;
@@ -488,6 +499,10 @@ namespace Microsoft.SPOT.Platform.Tests
                         c2.ToString() + " after color " + c1.ToString() + " at (" + temp1.ToString() + ", " + temp2.ToString() + ")");
                     tResult = MFTestResults.Fail;
                 }
+                else
+                {
+                    Log.Comment("Color value is increasing along gradient. Found " + c2.ToString() + " after color " + c1.ToString() + " at (" + temp1.ToString() + ", " + temp2.ToString() + ")");
+                }
                 c1 = _panel._pBitmap.GetPixel(temp1, temp2);
             }
             return tResult;
@@ -499,7 +514,8 @@ namespace Microsoft.SPOT.Platform.Tests
             int x, y, w = bmp.Width, h = bmp.Height;
             Log.Comment("Drawing Rectangle with Bitmap's w = " + w.ToString() + " and h = " + h.ToString());
             Log.Comment("filling the Rectangle with ImageBrush ");
-            
+
+            autoEvent.Reset();
             Master_Media._panel.Dispatcher.Invoke(new TimeSpan(0, 0, 5),
                 new DispatcherOperationCallback(DrawRectangle), new Point(bmp.Width, bmp.Height));
             autoEvent.WaitOne();

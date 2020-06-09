@@ -5,6 +5,9 @@
 #ifndef _DRIVERS_FS_DECL_H_
 #define _DRIVERS_FS_DECL_H_ 1
 
+//#define FS_DEBUG_PRINTF debug_printf
+//#define FS_DEBUG_PRINTF
+
 //--//
 
 struct BlockStorageDevice;

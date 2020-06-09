@@ -1,699 +1,761 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright (c) Microsoft Corporation.  All rights reserved.
+// Portions Copyright [2015] [Mountaineer]
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <tinyhal.h>
 #include "SD_BL.h"
 
+
+//#define SD_DEBUG
+
 //--//
+#if defined(SD_DEBUG)
+#define SD_DEBUG_PRINT  debug_printf
+#else
+#define SD_DEBUG_PRINT
+#endif
+
+#define SPI_DELAY 1
 
 extern struct SD_BL_CONFIGURATION g_SD_BL_Config;
 extern struct SD_DEVICE_REGISTERS g_SD_DeviceRegisters;
 
 #define SD_PHYISCAL_BASE_ADDRESS 0
 
+#define RETRY_DELAY 50
+
+
 static BYTE s_sectorBuff[SD_DATA_SIZE];
 static BYTE s_cmdBuff[SD_CMD_SIZE];
 
-#if defined(SD_DEBUG)
+#if defined(SD_DEBUG_DUMP_SECTOR)
 void DumpSector(BYTE* pSectorBuff, UINT32 BytesPerSector, UINT32 Offset);
 #endif
 
 
+extern BOOL SDCardIsInserted(); // see FS_config.cpp
 
 //--//
 
 static UINT8 CRC7Encode(UINT8 crc, UINT8 *input, int length)
 {
-    for(int j = 0; j < length; j++)
-    {
-        UINT8 byte = input[j];
-        
-        for(int i = 8; i > 0; i--)
-        {
-            crc = (crc << 1) | ((byte &0x80) ? 1 : 0);
-            if(crc &0x80)
-            {
-                crc ^= 9; // polynomial
-            } 
-            byte <<= 1;
-        }
-        crc &= 0x7f;
-    }
-    
-    for(int i = 7; i > 0; i--)
-    {
-        crc = (crc << 1);
-        if(crc &0x80)
-        {
-            crc ^= 9; // polynomial
-        }
-    }
-    
-    crc &= 0x7f;
-    
-    return crc;
+	for (int j = 0; j < length; j++)
+	{
+		UINT8 byte = input[j];
+
+		for (int i = 8; i > 0; i--)
+		{
+			crc = (crc << 1) | ((byte & 0x80) ? 1 : 0);
+			if (crc & 0x80)
+			{
+				crc ^= 9; // polynomial
+			}
+			byte <<= 1;
+		}
+		crc &= 0x7f;
+	}
+
+	for (int i = 7; i > 0; i--)
+	{
+		crc = (crc << 1);
+		if (crc & 0x80)
+		{
+			crc ^= 9; // polynomial
+		}
+	}
+
+	crc &= 0x7f;
+
+	return crc;
 }
 
-#define SPI_DELAY 50
 
-BYTE SD_BS_Driver::SPISendByte(BYTE data)
+
+BYTE __section("SectionForFlashOperations") SD_BS_Driver::SPISendByte(BYTE data)
 {
-    SPI_XACTION_8 config;
-    BYTE ReadByte = 0;
-    
-    config.Read8 = &ReadByte;
-    config.ReadCount = 1;
-    config.ReadStartOffset = 0;
-    config.SPI_mod = g_SD_BL_Config.SPI.SPI_mod;
-    config.Write8 = &data;
-    config.WriteCount = 1;
-    config.BusyPin.Pin = GPIO_PIN_NONE;
-    
-    HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
-    CPU_SPI_Xaction_nWrite8_nRead8(config);
-    HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
-    
-    return ReadByte;
-} 
+	SPI_XACTION_8 config;
+	BYTE ReadByte = 0;
 
-void SD_BS_Driver::SPISendCount(BYTE *pWrite, UINT32 WriteCount)
+	config.Read8 = &ReadByte;
+	config.ReadCount = 1;
+	config.ReadStartOffset = 0;
+	config.SPI_mod = g_SD_BL_Config.SPI.SPI_mod;
+	config.Write8 = &data;
+	config.WriteCount = 1;
+	config.BusyPin.Pin = GPIO_PIN_NONE;
+
+	HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
+	CPU_SPI_Xaction_nWrite8_nRead8(config);
+	HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
+
+	return ReadByte;
+}
+
+void __section("SectionForFlashOperations") SD_BS_Driver::SPISendCount(BYTE *pWrite, UINT32 WriteCount)
 {
-    SPI_XACTION_8 config;
+	SPI_XACTION_8 config;
 
-    ASSERT((pWrite != NULL) && (WriteCount != 0));
+	ASSERT((pWrite != NULL) && (WriteCount != 0));
 
-    config.Read8 = NULL;
-    config.ReadCount = 0;
-    config.ReadStartOffset = 0;
-    config.SPI_mod = g_SD_BL_Config.SPI.SPI_mod;
-    config.Write8 = pWrite;
-    config.WriteCount = WriteCount;
-    config.BusyPin.Pin = GPIO_PIN_NONE;
+	config.Read8 = NULL;
+	config.ReadCount = 0;
+	config.ReadStartOffset = 0;
+	config.SPI_mod = g_SD_BL_Config.SPI.SPI_mod;
+	config.Write8 = pWrite;
+	config.WriteCount = WriteCount;
+	config.BusyPin.Pin = GPIO_PIN_NONE;
 
-    HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
-    CPU_SPI_Xaction_nWrite8_nRead8(config);
+	HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
+	CPU_SPI_Xaction_nWrite8_nRead8(config);
 	HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
 }
 
-void SD_BS_Driver::SPIRecvCount(BYTE *pRead, UINT32 ReadCount, UINT32 Offset)
+void __section("SectionForFlashOperations") SD_BS_Driver::SPIRecvCount(BYTE *pRead, UINT32 ReadCount, UINT32 Offset)
 {
-    SPI_XACTION_8 config;
+	SPI_XACTION_8 config;
 
-    BYTE dummy = DUMMY;
+	BYTE dummy = DUMMY;
 
-    ASSERT((pRead != NULL) && (ReadCount != 0));
+	ASSERT((pRead != NULL) && (ReadCount != 0));
 
-    config.Read8 = pRead;
-    config.ReadCount = ReadCount;
-    config.ReadStartOffset = Offset;
-    config.SPI_mod = g_SD_BL_Config.SPI.SPI_mod;
-    config.Write8 = &dummy;
-    config.WriteCount = 1;
-    config.BusyPin.Pin = GPIO_PIN_NONE;
+	config.Read8 = pRead;
+	config.ReadCount = ReadCount;
+	config.ReadStartOffset = Offset;
+	config.SPI_mod = g_SD_BL_Config.SPI.SPI_mod;
+	config.Write8 = &dummy;
+	config.WriteCount = 1;
+	config.BusyPin.Pin = GPIO_PIN_NONE;
 
 	HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
-    CPU_SPI_Xaction_nWrite8_nRead8(config);
+	CPU_SPI_Xaction_nWrite8_nRead8(config);
 	HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
 }
 
 //Sets SD CS to INACTIVE state
-void SD_BS_Driver::SD_CsSetHigh()
+void __section("SectionForFlashOperations") SD_BS_Driver::SD_CsSetHigh()
 {
-    HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
-    CPU_GPIO_EnableOutputPin(g_SD_BL_Config.SPI.DeviceCS, !g_SD_BL_Config.SPI.CS_Active);
+	HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
+	CPU_GPIO_EnableOutputPin(g_SD_BL_Config.SPI.DeviceCS, !g_SD_BL_Config.SPI.CS_Active);
 
-    // to force SDC/MMC to release the bus after CS goes inactive, do one dummy write.
-    HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
-    SPISendByte(DUMMY);
+	// to force SDC/MMC to release the bus after CS goes inactive, do one dummy write.
+	HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
+	SPISendByte(DUMMY);
 }
 
 //Sets SD CS to ACTIVE state
-void SD_BS_Driver::SD_CsSetLow()
+void __section("SectionForFlashOperations") SD_BS_Driver::SD_CsSetLow()
 {
-    CPU_GPIO_EnableOutputPin(g_SD_BL_Config.SPI.DeviceCS, g_SD_BL_Config.SPI.CS_Active);
-    HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
+	CPU_GPIO_EnableOutputPin(g_SD_BL_Config.SPI.DeviceCS, g_SD_BL_Config.SPI.CS_Active);
+	HAL_Time_Sleep_MicroSeconds(SPI_DELAY);
 }
 
-BYTE SD_BS_Driver::SD_CheckBusy(void)
+BYTE __section("SectionForFlashOperations") SD_BS_Driver::SD_CheckBusy(void)
 {
-    BYTE response;
-    BYTE rvalue = 0xFF;
+	BYTE response;
+	BYTE rvalue = 0xFF;
 
-    for(int i=10000; i!=0; i--)
-    {
-        response = SPISendByte(0xff);
+	for (int i = RESPONSE_TIME_OUT_LONGER; i != 0; i--)
+	{
+		response = SPISendByte(0xff);
 
-        if(response != 0xFF && rvalue == 0xFF)
-        {
-            response &= 0x1f;
-            switch(response) /* 7 6 5 4 3    1 0  */
-            {
-                /* data response  x x x 0 status 1 */
-                case 0x05:
-                    rvalue = SD_SUCCESS;
-                    break;
+		if (response != 0xFF && rvalue == 0xFF)
+		{
+			response &= 0x1f;
+			switch (response) /* 7 6 5 4 3    1 0  */
+			{
+				/* data response  x x x 0 status 1 */
+			case 0x05:
+				rvalue = SD_SUCCESS;
+				break;
 
-                case 0x0b:
-                    return (SD_CRC_ERROR);
+			case 0x0b:
+				return (SD_CRC_ERROR);
 
-                case 0x0d:
-                    return (SD_WRITE_ERROR);
+			case 0x0d:
+				return (SD_WRITE_ERROR);
 
-                default:
-                    rvalue = SD_OTHER_ERROR;
-                    break;
-            }
-        }
-        else if(response != 0x00 && rvalue != 0xFF)
-        {
-            break;
-        }
+			default:
+				rvalue = SD_OTHER_ERROR;
+				break;
+			}
+		}
+		else if (response != 0x00 && rvalue != 0xFF)
+		{
+			break;
+		}
 
-        HAL_Time_Sleep_MicroSeconds(SPI_DELAY); 
-    }
+		HAL_Time_Sleep_MicroSeconds(RETRY_DELAY);
+	}
 
-    return rvalue;
+	return rvalue;
 }
 
 //return Card status in R1 response
-BYTE SD_BS_Driver::SD_SendCmdWithR1Resp(BYTE cmd, UINT32 arg, BYTE crc, BYTE expectedToken, INT32 iterations)
+BYTE __section("SectionForFlashOperations") SD_BS_Driver::SD_SendCmdWithR1Resp(BYTE cmd, UINT32 arg, BYTE crc, BYTE expectedToken, INT32 iterations)
 {
-    BYTE response;
-    BYTE retVal = 0xFF;
+	BYTE response;
+	BYTE retVal = 0xFF;
 
-    s_cmdBuff[0] = (0x40 | cmd); // command
-    s_cmdBuff[1] = ((BYTE)((arg >> 24) &0xff)); // parameter
-    s_cmdBuff[2] = ((BYTE)((arg >> 16) &0xff));
-    s_cmdBuff[3] = ((BYTE)((arg >> 8) &0xff));
-    s_cmdBuff[4] = ((BYTE)((arg >> 0) &0xff));
-    s_cmdBuff[5] = (crc); // CRC check code
+	s_cmdBuff[0] = (0x40 | cmd); // command
+	s_cmdBuff[1] = ((BYTE)((arg >> 24) & 0xff)); // parameter
+	s_cmdBuff[2] = ((BYTE)((arg >> 16) & 0xff));
+	s_cmdBuff[3] = ((BYTE)((arg >> 8) & 0xff));
+	s_cmdBuff[4] = ((BYTE)((arg >> 0) & 0xff));
+	s_cmdBuff[5] = (crc); // CRC check code
 
-    SPISendByte(DUMMY);
+	SPISendByte(DUMMY);
 
-    SPISendCount(s_cmdBuff, SD_CMD_SIZE);
+	SPISendCount(s_cmdBuff, SD_CMD_SIZE);
 
-    for(int i = 0; i < iterations; i++)
-    {
-        response = SPISendByte(DUMMY);
-		
-        if(response == expectedToken)
-        {
-            return expectedToken;
-        }
-        else if((response != 0xFF) && (retVal == 0xFF))
-        {
-            retVal = response;
-        }
-    }
+	for (int i = 0; i < iterations; i++)
+	{
+		response = SPISendByte(DUMMY);
 
-    return retVal;
+		if (response == expectedToken)
+		{
+			return expectedToken;
+		}
+		else if ((response != 0xFF) && (retVal == 0xFF))
+		{
+			retVal = response;
+		}
+		HAL_Time_Sleep_MicroSeconds(RETRY_DELAY);
+	}
+
+	return retVal;
 }
 
 //return support voltage range in R3response
-BYTE SD_BS_Driver::SD_SendCmdWithR7Resp(BYTE cmd, UINT32 arg, BYTE *outVoltage)
+BYTE __section("SectionForFlashOperations") SD_BS_Driver::SD_SendCmdWithR7Resp(BYTE cmd, UINT32 arg, BYTE *outVoltage)
 {
-    BYTE response;
-    BYTE i, echo_back;
+	BYTE response;
+	BYTE i, echo_back;
 
-    ASSERT(outVoltage != NULL);
+	ASSERT(outVoltage != NULL);
 
-    *outVoltage = 0xFF;
+	*outVoltage = 0xFF;
 
-    s_cmdBuff[0] = (0x40 | cmd); // tansmition bit | command
-    s_cmdBuff[1] = ((BYTE)((arg >> 24) &0xff)); // parameter
-    s_cmdBuff[2] = ((BYTE)((arg >> 16) &0xff));
-    s_cmdBuff[3] = ((BYTE)((arg >> 8) &0xff));
-    s_cmdBuff[4] = ((BYTE)((arg >> 0) &0xff));
-    s_cmdBuff[5] = (CRC7Encode(0, s_cmdBuff, 5) << 1) | 1; // CRC | ENDBIT
+	s_cmdBuff[0] = (0x40 | cmd); // tansmition bit | command
+	s_cmdBuff[1] = ((BYTE)((arg >> 24) & 0xff)); // parameter
+	s_cmdBuff[2] = ((BYTE)((arg >> 16) & 0xff));
+	s_cmdBuff[3] = ((BYTE)((arg >> 8) & 0xff));
+	s_cmdBuff[4] = ((BYTE)((arg >> 0) & 0xff));
+	s_cmdBuff[5] = (CRC7Encode(0, s_cmdBuff, 5) << 1) | 1; // CRC | ENDBIT
 
-    SPISendByte(DUMMY);
+	SPISendByte(DUMMY);
 
-    SPISendCount(s_cmdBuff, SD_CMD_SIZE);
+	SPISendCount(s_cmdBuff, SD_CMD_SIZE);
 
-    for(i = 0; i < 100; i++)
-    {
-        response = SPISendByte(DUMMY);
-        if(response != 0xFF)
-        // begin token of R7 response
-            break;
-    }
+	for (i = 0; i < 100; i++)
+	{
+		response = SPISendByte(DUMMY);
+		if (response != 0xFF)
+			// begin token of R7 response
+			break;
+	}
 
-    if(i == 100)
-        return FALSE;
+	if (i == 100)
+		return FALSE;
 
-    //recieve voltage content in R7 response
-    SPISendByte(DUMMY);
-    SPISendByte(DUMMY);
-    *outVoltage = SPISendByte(DUMMY);
-    echo_back = SPISendByte(DUMMY);
+	//recieve voltage content in R7 response
+	SPISendByte(DUMMY);
+	SPISendByte(DUMMY);
+	*outVoltage = SPISendByte(DUMMY);
+	echo_back = SPISendByte(DUMMY);
 
 	return response;
 
 }
 
 //return support voltage range in R3response
-BYTE SD_BS_Driver::SD_SendCmdWithR3Resp(BYTE cmd, UINT32 arg, UINT32 *pOcr)
+BYTE __section("SectionForFlashOperations") SD_BS_Driver::SD_SendCmdWithR3Resp(BYTE cmd, UINT32 arg, UINT32 *pOcr)
 {
-    BYTE response;
-    BYTE i;
+	BYTE response;
+	BYTE i;
 
-    ASSERT(pOcr != NULL);
+	ASSERT(pOcr != NULL);
 
-    *pOcr = 0;
+	*pOcr = 0;
 
-    s_cmdBuff[0] = (0x40 | cmd); // tansmition bit | command
-    s_cmdBuff[1] = ((BYTE)((arg >> 24) &0xff)); // parameter
-    s_cmdBuff[2] = ((BYTE)((arg >> 16) &0xff));
-    s_cmdBuff[3] = ((BYTE)((arg >> 8) &0xff));
-    s_cmdBuff[4] = ((BYTE)((arg >> 0) &0xff));
-    s_cmdBuff[5] = (CRC7Encode(0, s_cmdBuff, 5) << 1) | 1; // CRC | ENDBIT
+	s_cmdBuff[0] = (0x40 | cmd); // tansmition bit | command
+	s_cmdBuff[1] = ((BYTE)((arg >> 24) & 0xff)); // parameter
+	s_cmdBuff[2] = ((BYTE)((arg >> 16) & 0xff));
+	s_cmdBuff[3] = ((BYTE)((arg >> 8) & 0xff));
+	s_cmdBuff[4] = ((BYTE)((arg >> 0) & 0xff));
+	s_cmdBuff[5] = (CRC7Encode(0, s_cmdBuff, 5) << 1) | 1; // CRC | ENDBIT
 
-    SPISendByte(DUMMY);
+	SPISendByte(DUMMY);
 
-    SPISendCount(s_cmdBuff, SD_CMD_SIZE);
+	SPISendCount(s_cmdBuff, SD_CMD_SIZE);
 
-    for(i = 0; i < 10; i++)
-    {
-	    // R1 response ...
-        response = SPISendByte(DUMMY);
+	for (i = 0; i < 10; i++)
+	{
+		// R1 response ...
+		response = SPISendByte(DUMMY);
 
-        if(response != 0xFF)
-        // begin token of R3 response
-            break;
-    }
+		if (response != 0xFF)
+			// begin token of R3 response
+			break;
+	}
 
-    if(i == 10)
-        return FALSE;
+	if (i == 10)
+		return FALSE;
 
-    //recieve voltage content in R7 response
-    BYTE temp=0;
-    for(int j=24; j>=0; j-=8)
-    {
-        temp=SPISendByte(DUMMY); 
-       *pOcr |= (temp << j);
-    }
+	//recieve voltage content in R7 response
+	BYTE temp = 0;
+	for (int j = 24; j >= 0; j -= 8)
+	{
+		temp = SPISendByte(DUMMY);
+		*pOcr |= (temp << j);
+	}
 
 
-     return response;
+	return response;
 
 }
 
 BOOL SD_BS_Driver::ChipInitialize(void *context)
 {
-    SD_BLOCK_CONFIG *config = (SD_BLOCK_CONFIG*)context;
+	SD_BLOCK_CONFIG *config = (SD_BLOCK_CONFIG*)context;
+
+	UINT64 MemCapacity = 0; //total memory size, in unit of byte
+	UINT32 Max_Trans_Speed = 0; //in unit of Hz
 
 	BOOL isVersion1 = TRUE;
-    BOOL isInitialised = FALSE;
-	
-    if(!config || !config->BlockDeviceInformation)
-    {
-        return FALSE;
-    }
+	BOOL isInitialised = FALSE;
 
-    BlockDeviceInfo* pDevInfo = config->BlockDeviceInformation;
-    
-    UINT32 clkNormal = g_SD_BL_Config.SPI.Clock_RateKHz;
-    
-    g_SD_BL_Config.SPI.Clock_RateKHz = 400; // initialization clock speed
-    
-    //one test for insert \ eject ISR
-    if(g_SD_BL_Config.InsertIsrPin != GPIO_PIN_NONE)
-    {
-        CPU_GPIO_EnableInputPin(g_SD_BL_Config.InsertIsrPin, TRUE, InsertISR, GPIO_INT_EDGE_LOW, RESISTOR_PULLUP);
-    }
-    if(g_SD_BL_Config.EjectIsrPin != GPIO_PIN_NONE)
-    {
-        CPU_GPIO_EnableInputPin(g_SD_BL_Config.EjectIsrPin, TRUE, EjectISR, GPIO_INT_EDGE_LOW, RESISTOR_PULLUP);
-    }
-
-    CPU_SPI_Initialize();
-    GLOBAL_LOCK(irq);
-
-    CPU_SPI_Xaction_Start(g_SD_BL_Config.SPI);
-
-    BYTE response;
-
-    do
-    {
-        // select SD card and set to IDLE
-        response = SD_Cmd_GO_IDLE_STATE();
-        if(response != R1_IN_IDLE_STATUS)
-        {
-            break;
-        }
-
-        // check if voltages in interface ok. Side effect is to detect version 2.0+ cards.
-        if (!SD_Cmd_SEND_IF_COND(g_SD_BL_Config.Low_Voltage_Flag, &isVersion1))
-        {
-            break;
-        }
-       
-        // read OCR. 
-        // TODO: Check if supported voltage ok.
-        response = ReadOCR_R3(&g_SD_DeviceRegisters.OCR);
-        
-        // Set SD to READY STATUS
-        if (!SD_Set_In_READY_STATUS(!isVersion1))
-        {
-             break;  // failed, could not get card into ready state.
-        }
-
-        // read OCR and check CCS. Lets us know if the SD card is SC or HC/XC. 
-        response = ReadOCR_R3(&g_SD_DeviceRegisters.OCR);
-        
-        // send CMD16, set block length to 512
 #ifdef SD_DEBUG
-        debug_printf" SD SendCmdWithR1Resp: SD_SET_BLOCKLEN[512] -> R1_IN_READY_STATUS\r\n");
+	SD_DEBUG_PRINT(" SD SD_BS_Driver::ChipInitialize: clkNormal = %d\r\n", g_SD_BL_Config.SPI.Clock_RateKHz);
 #endif
 
-        response = SD_SendCmdWithR1Resp(SD_SET_BLOCKLEN, 512, 0xFF, R1_IN_READY_STATUS);
+	if (!config || !config->BlockDeviceInformation)
+	{
+		return FALSE;
+	}
 
-        if(response != R1_IN_READY_STATUS)
-        {
-            break;
-        }    
+	BlockDeviceInfo* pDevInfo = config->BlockDeviceInformation;
 
-        //send CMD9  to get CSD
-        BYTE regCSD[CSD_CID_LENGTH];
+	UINT32 clkNormal = g_SD_BL_Config.SPI.Clock_RateKHz;
 
-        BYTE C_SIZE_MULT = 0;
+	g_SD_BL_Config.SPI.Clock_RateKHz = 400; // initialization clock speed
 
-        BYTE TAAC, NSAC, MAX_TRAN_SPEED, READ_BL_LEN, SECTOR_SIZE;
+	//one test for insert \ eject ISR
+	if (g_SD_BL_Config.InsertIsrPin != GPIO_PIN_NONE)
+	{
+		CPU_GPIO_EnableInputPin(g_SD_BL_Config.InsertIsrPin, TRUE, InsertISR, GPIO_INT_EDGE_LOW, RESISTOR_PULLUP);
+	}
+	if (g_SD_BL_Config.EjectIsrPin != GPIO_PIN_NONE)
+	{
+		CPU_GPIO_EnableInputPin(g_SD_BL_Config.EjectIsrPin, TRUE, EjectISR, GPIO_INT_EDGE_LOW, RESISTOR_PULLUP);
+	}
 
-        BOOL ERASE_BL_EN;
+	CPU_SPI_Initialize();
+	GLOBAL_LOCK(irq);
 
-        UINT32 C_SIZE;
+	CPU_SPI_Xaction_Start(g_SD_BL_Config.SPI);
 
-        UINT64 MemCapacity = 0; //total memory size, in unit of byte
+	BYTE response;
 
-        UINT32 Max_Trans_Speed = 0; //in unit of Hz
-        
+	do
+	{
+		// select SD card and set to IDLE
+		response = SD_Cmd_GO_IDLE_STATE(); //CMD00
+		if (response != R1_IN_IDLE_STATUS)
+		{
+			break;
+		}
 
+		// check if voltages in interface ok. Side effect is to detect version 2.0+ cards.
+		if (!SD_Cmd_SEND_IF_COND(g_SD_BL_Config.Low_Voltage_Flag, &isVersion1)) // CMD08
+		{
+			break;
+		}
+
+		// read OCR. 
+		// TODO: Check if supported voltage ok.
+		response = ReadOCR_R3(&g_SD_DeviceRegisters.OCR); //// CMD58
+
+		// Set SD to READY STATUS
+		if (!SD_Set_In_READY_STATUS(!isVersion1)) //ACMD41
+		{
+			break;  // failed, could not get card into ready state.
+		}
+
+		// read OCR and check CCS. Lets us know if the SD card is SC or HC/XC. 
+		response = ReadOCR_R3(&g_SD_DeviceRegisters.OCR);
+
+		// send CMD16, set block length to 512
 #ifdef SD_DEBUG
-	    debug_printf(" SD SendCmdWithR1Resp: SD_SEND_CSD[0] -> SD_START_DATA_BLOCK_TOKEN=%02X\r\n",SD_START_DATA_BLOCK_TOKEN);
+		SD_DEBUG_PRINT(" SD SendCmdWithR1Resp: SD_SET_BLOCKLEN[512] -> R1_IN_READY_STATUS\r\n");
 #endif
 
-        response = SD_SendCmdWithR1Resp(SD_SEND_CSD, 0, 0xFF, SD_START_DATA_BLOCK_TOKEN);
-    
-        if(response != SD_START_DATA_BLOCK_TOKEN)
-        {
-            break;
-        }
-        else
-        {
-            // receive one sector data
-            SPIRecvCount(regCSD, CSD_CID_LENGTH, 0);
-    
-            // receive 16 bit CRC
-        SPISendByte(DUMMY);
-        SPISendByte(DUMMY);
-    
-    
-            //Table 5-5: TAAC Access Time Definition	
-            //TAAC bit position code
-            //2:0 time unit   0=1ns, 1=10ns, 2=100ns, 3=1탎, 4=10탎,5=100탎, 6=1ms, 7=10ms
-            //6:3 time value  0=reserved, 1=1.0, 2=1.2, 3=1.3, 4=1.5, 5=2.0, 6=2.5, 7=3.0, 
-            //                8=3.5,      9=4.0, A=4.5, B=5.0, C=5.5, D=6.0, E=7.0, F=8.0
-            //  7 reserved
-            TAAC = regCSD[1];
-            
-            // NSAC
-            // Defines the worst case for the clock-dependant factor of the data access time. The unit for NSAC is 100
-            // clock cycles. Therefore, the maximal value for the clock-dependent part of the data access time is 25.5
-            // k clock cycles.
-            //
-            // The total access time NAC is the sum of TAAC and NSAC. It should be computed by the host for the
-            // actual clock rate. The read access time should be interpreted as a typical delay for the first data bit of a
-            // data block or stream.
-            NSAC = regCSD[2];
-            
-            //TRAN_SPEED
-            // The following table defines the maximum data transfer rate per one data line 
-            // Table 5-6: Maximum Data Transfer Rate Definition
-            //   2:0 transfer rate unit 0=100kbit/s, 1=1Mbit/s, 2=10Mbit/s, 3=100Mbit/s, 4... 7=reserved
-            //   6:3 time value         0=reserved, 1=1.0, 2=1.2, 3=1.3, 4=1.5, 5=2.0, 6=2.5, 7=3.0, 
-            //                          8=3.5, 9=4.0, A=4.5, B=5.0, C=5.5, D=6.0, E=7.0, F=8.0
-            //   7   reserved
-            // Notes:
-            //  For current SD Memory Cards, this field shall be always 0_0110_010b (032h) which is equal to
-            //  25 MHz - the mandatory maximum operating frequency of SD Memory Card.
-            //  In High-Speed mode, this field shall be always 0_1011_010b (05Ah) which is equal to 50 MHz, and
-            //  when the timing mode returns to the default by CMD6 or CMD0 command, its value will be 032h.
-            MAX_TRAN_SPEED = regCSD[3];
-            
-            if(MAX_TRAN_SPEED == 0x32)
-                Max_Trans_Speed = 25000000;   //normal mode
-            else if(MAX_TRAN_SPEED == 0x5A)
-                Max_Trans_Speed = 50000000;   //High-Speed mode
-           
-            
-            // The maximum read data block length: 2 ^ READ_BL_LEN 
-            READ_BL_LEN = regCSD[5] &0x0F;
-            
-            ERASE_BL_EN = ((regCSD[10] &0x40) == 0x00) ? FALSE : TRUE;
-            SECTOR_SIZE = ((regCSD[10] &0x3F) << 1) | ((regCSD[11] &0x80) >> 7); //erase sector size
-    
-    
-            if(regCSD[0] == 0x00)
-            //SD spec version1.0
-            {
-    
-#ifdef SD_DEBUG
-		        debug_printf(" SD spec version 1.0\r\n");
-#endif
-                //UINT32 CCC = (regCSD[4]<<4) | ((regCSD[5] >> 4)  &0x0F);// Card Command Classes 01x110110101
-                
-                // This parameter is used to compute the user's data card capacity (not include the security protected area).
-                C_SIZE = ((regCSD[6] &0x3) << 10) | (regCSD[7] << 2) | ((regCSD[8] &0xC0) >> 6);
+		response = SD_SendCmdWithR1Resp(SD_SET_BLOCKLEN, 512, 0xFF, R1_IN_READY_STATUS);
 
-                // C_SIZE_MULT : Table 5-12: Multiply Factor for the Device Size 
-                // This parameter is used for coding a factor MULT for computing the total device size (see 'C_SIZE'). The
-                // factor MULT is defined as 2^(C_SIZE_MULT+2).
-                // C_SIZE_MULT MULT
-                // 0 2^2 = 4
-                // 1 2^3 = 8
-                // 2 2^4 = 16
-                // 3 2^5 = 32
-                // 4 2^6 = 64
-                // 5 2^7 = 128
-                // 6 2^8 = 256
-                // 7 2^9 = 512
-                C_SIZE_MULT = ((regCSD[9] &0x03) << 1) | ((regCSD[10] &0x80) >> 7);
+		if (response != R1_IN_READY_STATUS)
+		{
+			break;
+		}
 
-                // memory capacity = BLOCKNR * BLOCK_LEN
-                // Where: 
-                //  BLOCK_LEN = 2 ^ READ_BL_LEN where (READ_BL_LEN < 12)
-                //  MULT = 2 ^ (C_SIZE_MULT+2) * (C_SIZE_MULT < 8)
-                //  BLOCKNR = (C_SIZE+1) * MULT
-                MemCapacity = (C_SIZE + 1)*(0x1 << (C_SIZE_MULT + 2))*(0x1 << READ_BL_LEN);
-            }
-            else
-            //SD spec version2.0
-            {
-#ifdef SD_DEBUG
-                debug_printf(" SD spec version 2.0\r\n");
-#endif
-                C_SIZE = ((regCSD[7] &0x3F) << 16) | (regCSD[8] << 8) | regCSD[9];
-                MemCapacity = (((UINT64)(C_SIZE + 1)) << 19);// * (UINT64)512 * (UINT64)1024;
-            }
+		//send CMD9  to get CSD
+		BYTE regCSD[CSD_CID_LENGTH];
+
+		BYTE C_SIZE_MULT = 0;
+
+		BYTE TAAC, NSAC, MAX_TRAN_SPEED, READ_BL_LEN, SECTOR_SIZE;
+
+		BOOL ERASE_BL_EN;
+
+		UINT32 C_SIZE;
+
+
+
 
 #ifdef SD_DEBUG
-            debug_printf(" SD MemCapacity=%llu\r\n",  MemCapacity);
+		SD_DEBUG_PRINT(" SD SendCmdWithR1Resp: SD_SEND_CSD[0] -> SD_START_DATA_BLOCK_TOKEN=%02X\r\n", SD_START_DATA_BLOCK_TOKEN);
 #endif
-            if (MemCapacity > MAX_SD_CARD_SIZE )
-            {
+
+		response = SD_SendCmdWithR1Resp(SD_SEND_CSD, 0, 0xFF, SD_START_DATA_BLOCK_TOKEN);
+
+		if (response != SD_START_DATA_BLOCK_TOKEN)
+		{
+			break;
+		}
+		else
+		{
+			// receive one sector data
+			SPIRecvCount(regCSD, CSD_CID_LENGTH, 0);
+
+			// receive 16 bit CRC
+			BYTE crc1 = SPISendByte(DUMMY);
+			BYTE crc2 = SPISendByte(DUMMY);
+
+
+			//SD_DEBUG_PRINTF(" SD CSD: %02X %02X %02X %02X %02X %02X %02X %02X - " 
+			//                  "%02X %02X %02X %02X %02X %02X %02X %02X - %02X %02X\r\n",
+			//				   regCSD[0],regCSD[1],regCSD[2],regCSD[3],
+			//				   regCSD[4],regCSD[5],regCSD[6],regCSD[7],
+			//				   regCSD[8],regCSD[9],regCSD[10],regCSD[11],
+			//				   regCSD[12],regCSD[13],regCSD[14],regCSD[15],
+			//				   crc1,crc2						   
+			//				   );
+
+			//Table 5-5: TAAC Access Time Definition	
+			//TAAC bit position code
+			//2:0 time unit   0=1ns, 1=10ns, 2=100ns, 3=1탎, 4=10탎,5=100탎, 6=1ms, 7=10ms
+			//6:3 time value  0=reserved, 1=1.0, 2=1.2, 3=1.3, 4=1.5, 5=2.0, 6=2.5, 7=3.0, 
+			//                8=3.5,      9=4.0, A=4.5, B=5.0, C=5.5, D=6.0, E=7.0, F=8.0
+			//  7 reserved
+			TAAC = regCSD[1];
+
+			// NSAC
+			// Defines the worst case for the clock-dependant factor of the data access time. The unit for NSAC is 100
+			// clock cycles. Therefore, the maximal value for the clock-dependent part of the data access time is 25.5
+			// k clock cycles.
+			//
+			// The total access time NAC is the sum of TAAC and NSAC. It should be computed by the host for the
+			// actual clock rate. The read access time should be interpreted as a typical delay for the first data bit of a
+			// data block or stream.
+			NSAC = regCSD[2];
+
+			//TRAN_SPEED
+			// The following table defines the maximum data transfer rate per one data line 
+			// Table 5-6: Maximum Data Transfer Rate Definition
+			//   2:0 transfer rate unit 0=100kbit/s, 1=1Mbit/s, 2=10Mbit/s, 3=100Mbit/s, 4... 7=reserved
+			//   6:3 time value         0=reserved, 1=1.0, 2=1.2, 3=1.3, 4=1.5, 5=2.0, 6=2.5, 7=3.0, 
+			//                          8=3.5, 9=4.0, A=4.5, B=5.0, C=5.5, D=6.0, E=7.0, F=8.0
+			//   7   reserved
+			// Notes:
+			//  For current SD Memory Cards, this field shall be always 0_0110_010b (032h) which is equal to
+			//  25 MHz - the mandatory maximum operating frequency of SD Memory Card.
+			//  In High-Speed mode, this field shall be always 0_1011_010b (05Ah) which is equal to 50 MHz, and
+			//  when the timing mode returns to the default by CMD6 or CMD0 command, its value will be 032h.
+			MAX_TRAN_SPEED = regCSD[3];
+
+			if (MAX_TRAN_SPEED == 0x32)
+			{
+				Max_Trans_Speed = 25000000;   //normal mode
+			}
+			else if (MAX_TRAN_SPEED == 0x5A)
+			{
+				Max_Trans_Speed = 50000000;   //High-Speed mode
+			}
+			else
+			{
+				Max_Trans_Speed = 1500000;   //1.5 MHz fall back
+			}
+
 #ifdef SD_DEBUG
-                debug_printf(" SD: ##### LIMIT SIZE to %llu (HACK!)\r\n",MAX_SD_CARD_SIZE);
+			SD_DEBUG_PRINT(" MAX_TRAN_SPEED=%d %02X\r\n", Max_Trans_Speed, MAX_TRAN_SPEED);
+#endif       
+
+			// The maximum read data block length: 2 ^ READ_BL_LEN 
+			READ_BL_LEN = regCSD[5] & 0x0F;
+
+			ERASE_BL_EN = ((regCSD[10] & 0x40) == 0x00) ? FALSE : TRUE;
+			SECTOR_SIZE = ((regCSD[10] & 0x3F) << 1) | ((regCSD[11] & 0x80) >> 7); //erase sector size
+
+
+			//        BYTE FILE_FORMAT_GRP =  regCSD[14] & 0x80;
+			//        BYTE FILE_FORMAT     =  (regCSD[14] & 0x0c) >> 2;
+			//			  SD_DEBUG_PRINTF(" SD FILE_FORMAT_GRP=%d FILE_FORMAT=%d\r\n",FILE_FORMAT_GRP ,FILE_FORMAT);
+
+			if (regCSD[0] == 0x00)
+				//SD spec version1.0
+			{
+
+#ifdef SD_DEBUG
+				SD_DEBUG_PRINT(" SD spec version 1.0\r\n");
 #endif
-                MemCapacity = MAX_SD_CARD_SIZE;
-            }
+				//UINT32 CCC = (regCSD[4]<<4) | ((regCSD[5] >> 4)  &0x0F);// Card Command Classes 01x110110101
+
+				// This parameter is used to compute the user's data card capacity (not include the security protected area).
+				C_SIZE = ((regCSD[6] & 0x3) << 10) | (regCSD[7] << 2) | ((regCSD[8] & 0xC0) >> 6);
+
+				// C_SIZE_MULT : Table 5-12: Multiply Factor for the Device Size 
+				// This parameter is used for coding a factor MULT for computing the total device size (see 'C_SIZE'). The
+				// factor MULT is defined as 2^(C_SIZE_MULT+2).
+				// C_SIZE_MULT MULT
+				// 0 2^2 = 4
+				// 1 2^3 = 8
+				// 2 2^4 = 16
+				// 3 2^5 = 32
+				// 4 2^6 = 64
+				// 5 2^7 = 128
+				// 6 2^8 = 256
+				// 7 2^9 = 512
+				C_SIZE_MULT = ((regCSD[9] & 0x03) << 1) | ((regCSD[10] & 0x80) >> 7);
+
+				// memory capacity = BLOCKNR * BLOCK_LEN
+				// Where: 
+				//  BLOCK_LEN = 2 ^ READ_BL_LEN where (READ_BL_LEN < 12)
+				//  MULT = 2 ^ (C_SIZE_MULT+2) * (C_SIZE_MULT < 8)
+				//  BLOCKNR = (C_SIZE+1) * MULT
+				MemCapacity = (C_SIZE + 1)*(0x1 << (C_SIZE_MULT + 2))*(0x1 << READ_BL_LEN);
+			}
+			else
+				//SD spec version2.0
+			{
 #ifdef SD_DEBUG
-            debug_printf(" SD C_SIZE=%ld (%08lX) C_SIZE_MULT=%d\r\n",  C_SIZE,C_SIZE,C_SIZE_MULT);
-            debug_printf(" SD ERASE_BL_EN=%d SECTOR_SIZE=%d Max_Trans_Speed=%d READ_BL_LEN=%d\r\n",
-	                        ERASE_BL_EN,SECTOR_SIZE,Max_Trans_Speed,READ_BL_LEN);
-#endif	
-		
+				SD_DEBUG_PRINT(" SD spec version 2.0\r\n");
+#endif
+				C_SIZE = ((regCSD[7] & 0x3F) << 16) | (regCSD[8] << 8) | regCSD[9];
+				MemCapacity = (((UINT64)(C_SIZE + 1)) << 19);// * (UINT64)512 * (UINT64)1024;
+			}
+
+#ifdef SD_DEBUG
+			SD_DEBUG_PRINT(" SD MemCapacity=%llu\r\n", MemCapacity);
+#endif
+
+#ifdef SD_DEBUG
+			SD_DEBUG_PRINT(" SD C_SIZE=%ld (%08lX) C_SIZE_MULT=%d\r\n", C_SIZE, C_SIZE, C_SIZE_MULT);
+			SD_DEBUG_PRINT(" SD ERASE_BL_EN=%d SECTOR_SIZE=%d Max_Trans_Speed=%d READ_BL_LEN=%d\r\n",
+				ERASE_BL_EN, SECTOR_SIZE, Max_Trans_Speed, READ_BL_LEN);
+#endif    
+
 #if 0
-            UINT8 crc = (CRC7Encode(0, regCSD, 15) << 1) | 1;
+			UINT8 crc = (CRC7Encode(0, regCSD, 15) << 1) | 1;
 
-            if(crc != regCSD[15])
-            {
+			if (crc != regCSD[15])
+			{
 #ifdef SD_DEBUG
-                debug_printf(" Wrong CRC for CSD register!\r\n");
+				SD_DEBUG_PRINT(" Wrong CRC for CSD register!\r\n");
 #endif
-            }
+			}
 #endif
 
-            //Update SD config according to CSD register
-            UINT32 SectorsPerBlock    = (ERASE_BL_EN == TRUE) ? 1 : (SECTOR_SIZE + 1);
-            pDevInfo->BytesPerSector  = 512; // data bytes per sector is always 512
-            pDevInfo->Size            = MemCapacity;
-    
-            BlockRegionInfo* pRegions = (BlockRegionInfo*)&pDevInfo->Regions[0];
-            pRegions[0].BytesPerBlock = SectorsPerBlock * pDevInfo->BytesPerSector;
-            pRegions[0].NumBlocks     = MemCapacity / pRegions[0].BytesPerBlock;
-            
-            BlockRange* pRanges   = (BlockRange*)&pRegions[0].BlockRanges[0];
-    
-            pRanges[0].StartBlock = 0;
-            pRanges[0].EndBlock   = pRegions[0].NumBlocks-1;
-        }
+			//Update SD config according to CSD register
+			UINT32 SectorsPerBlock = (ERASE_BL_EN == TRUE) ? 1 : (SECTOR_SIZE + 1);
+			pDevInfo->BytesPerSector = 512; // data bytes per sector is always 512
+			pDevInfo->Size = MemCapacity; // Size is 32 bit but unused !!!
 
-        //CMD55+ACMD51 to get SCR register
-        BYTE regSCR[8];
-    
-        SD_SendCmdWithR1Resp(SD_APP_CMD, 0, 0xFF, R1_IN_READY_STATUS);
-        response = SD_SendCmdWithR1Resp(SD_SEND_SCR, 0, 0xFF, SD_START_DATA_BLOCK_TOKEN);
-    
-        if(response != SD_START_DATA_BLOCK_TOKEN)
-        {
-            break;
-        }
-        else
-        {
-            // receive one sector data
-            SPIRecvCount(regSCR, SCR_LENGTH, 0);
-    
-#ifndef SD_DEBUG
-            SPISendByte(DUMMY);
-            SPISendByte(DUMMY);
-#else
-            // receive 16 bit CRC
-            BYTE crc1 = SPISendByte(DUMMY);
-            BYTE crc2 = SPISendByte(DUMMY);
-    
-	        debug_printf(" SD SCR: %02X %02X %02X %02X %02X %02X %02X %02X - %02X %02X\r\n",
-						   regSCR[0],regSCR[1],regSCR[2],regSCR[3],
-						   regSCR[4],regSCR[5],regSCR[6],regSCR[7],
-						   crc1,crc2						   
-						   );
-#endif
-            g_SD_BL_Config.State_After_Erase = ((regSCR[1] &0x80) != 0x0);
-        }
+			BlockRegionInfo* pRegions = (BlockRegionInfo*)&pDevInfo->Regions[0];
+			pRegions[0].BytesPerBlock = SectorsPerBlock * pDevInfo->BytesPerSector;
+			pRegions[0].NumBlocks = MemCapacity / pRegions[0].BytesPerBlock;
 
-        //CMD10 to get CID
+			BlockRange* pRanges = (BlockRange*)&pRegions[0].BlockRanges[0];
 
-        BYTE regCID[16];
+			pRanges[0].StartBlock = 0;
+			pRanges[0].EndBlock = pRegions[0].NumBlocks - 1;
+		}
 
-        BYTE ManufacturerCode;
+		//CMD55+ACMD51 to get SCR register
+		BYTE regSCR[8];
 
-        UINT16 OEMID;
 
-        BYTE ProductName[5];
-	       
-        response = SD_SendCmdWithR1Resp(SD_SEND_CID, 0, 0xFF, SD_START_DATA_BLOCK_TOKEN);
+		//SD_DEBUG_PRINTF(" SD Read SCR\r\n");
 
-        if(response != SD_START_DATA_BLOCK_TOKEN)
-        {
-            break;
-        }
-        else
-        {
-            // receive one sector data
-            SPIRecvCount(regCID, CSD_CID_LENGTH, 0);
+
+		SD_SendCmdWithR1Resp(SD_APP_CMD, 0, 0xFF, R1_IN_READY_STATUS);
+		response = SD_SendCmdWithR1Resp(SD_SEND_SCR, 0, 0xFF, SD_START_DATA_BLOCK_TOKEN);
+
+		if (response != SD_START_DATA_BLOCK_TOKEN)
+		{
+			break;
+		}
+		else
+		{
+			// receive one sector data
+			SPIRecvCount(regSCR, SCR_LENGTH, 0);
 
 #ifndef SD_DEBUG
-            SPISendByte(DUMMY);
-            SPISendByte(DUMMY);
+			SPISendByte(DUMMY);
+			SPISendByte(DUMMY);
 #else
-            // receive 16 bit CRC
-            BYTE crc1 = SPISendByte(DUMMY);
-            BYTE crc2 = SPISendByte(DUMMY);
+			// receive 16 bit CRC
+			BYTE crc1 = SPISendByte(DUMMY);
+			BYTE crc2 = SPISendByte(DUMMY);
 
-
-	        debug_printf(" SD CID: %02X %02X %02X %02X %02X %02X %02X %02X - " 
-	                      "%02X %02X %02X %02X %02X %02X %02X %02X - %02X %02X\r\n",
-						   regCID[0],regCID[1],regCID[2],regCID[3],
-						   regCID[4],regCID[5],regCID[6],regCID[7],
-						   regCID[8],regCID[9],regCID[10],regCID[11],
-						   regCID[12],regCID[13],regCID[14],regCID[15],
-						   crc1,crc2						   
-						   );
+			SD_DEBUG_PRINT(" SD SCR: %02X %02X %02X %02X %02X %02X %02X %02X - %02X %02X\r\n",
+				regSCR[0], regSCR[1], regSCR[2], regSCR[3],
+				regSCR[4], regSCR[5], regSCR[6], regSCR[7],
+				crc1, crc2
+				);
 #endif
-        }
+			g_SD_BL_Config.State_After_Erase = ((regSCR[1] & 0x80) != 0x0);
+		}
 
-        ManufacturerCode = regCID[0];
+		//CMD10 to get CID
 
-        memcpy(&OEMID, &regCID[1], 2);
+		BYTE regCID[16];
 
-        memcpy(&ProductName, &regCID[3], 5);
-	    
-        isInitialised = true;
-  
-    } while (FALSE);
+		BYTE ManufacturerCode;
+
+		UINT16 OEMID;
+
+		BYTE ProductName[5];
 
 
-    // Clean up and deselect SD card.
-    
-    SD_CsSetHigh();
-    CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
-    g_SD_BL_Config.SPI.Clock_RateKHz = clkNormal;
-    
-    return isInitialised;
+		//SD_DEBUG_PRINTF(" SD Read CID\r\n");
+
+
+		response = SD_SendCmdWithR1Resp(SD_SEND_CID, 0, 0xFF, SD_START_DATA_BLOCK_TOKEN);
+
+		if (response != SD_START_DATA_BLOCK_TOKEN)
+		{
+			break;
+		}
+		else
+		{
+			// receive one sector data
+			SPIRecvCount(regCID, CSD_CID_LENGTH, 0);
+
+#ifndef SD_DEBUG
+			SPISendByte(DUMMY);
+			SPISendByte(DUMMY);
+#else
+			// receive 16 bit CRC
+			BYTE crc1 = SPISendByte(DUMMY);
+			BYTE crc2 = SPISendByte(DUMMY);
+
+
+			SD_DEBUG_PRINT(" SD CID: %02X %02X %02X %02X %02X %02X %02X %02X - "
+				"%02X %02X %02X %02X %02X %02X %02X %02X - %02X %02X\r\n",
+				regCID[0], regCID[1], regCID[2], regCID[3],
+				regCID[4], regCID[5], regCID[6], regCID[7],
+				regCID[8], regCID[9], regCID[10], regCID[11],
+				regCID[12], regCID[13], regCID[14], regCID[15],
+				crc1, crc2
+				);
+#endif
+		}
+
+		ManufacturerCode = regCID[0];
+
+		memcpy(&OEMID, &regCID[1], 2);
+
+		memcpy(&ProductName, &regCID[3], 5);
+
+		isInitialised = true;
+
+	} while (FALSE);
+
+
+	// Clean up and deselect SD card.
+
+	SD_CsSetHigh();
+	CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
+	g_SD_BL_Config.SPI.Clock_RateKHz = clkNormal;
+	//if (g_SD_BL_Config.SPI.Clock_RateKHz > Max_Trans_Speed) g_SD_BL_Config.SPI.Clock_RateKHz = Max_Trans_Speed;// pick lowest speed
+
+	return isInitialised;
 }
 
 BYTE SD_BS_Driver::SD_Cmd_GO_IDLE_STATE()
 {
-    BYTE response;
-    int i;
-    
-    SD_CsSetHigh(); // SET SD Chip Select (CS) inactive
-    
-    //need 74 clock for initialize
-    for(i = 0; i < 10; i++)
-    {
-        SPISendByte(DUMMY);
-    }
-    
-    // need CS low to enter SPI mode
-    SD_CsSetLow();
-    
-    // send CMD0, card should enter IDLE state
-    for(i = 0; i < 10; i++)
-    {
-        response = SD_SendCmdWithR1Resp(SD_GO_IDLE_STATE, 0, 0x95, R1_IN_IDLE_STATUS);
-        if(response == R1_IN_IDLE_STATUS)
-            break;
-    }
+	BYTE response;
+	int i;
+
+	SD_CsSetHigh(); // SET SD Chip Select (CS) inactive
+
+	//need 74 clock for initialize
+	//send 10 * 8 bits for a total of 80 clocks.
+	for (i = 0; i < 10; i++)
+	{
+		SPISendByte(DUMMY);
+	}
+
+	// need CS low to enter SPI mode
+	SD_CsSetLow();
+
+	// send CMD0, card should enter IDLE state
+	// Try up to 10 times to enter IDLE state
+	for (i = 0; i < 10; i++)
+	{
+		response = SD_SendCmdWithR1Resp(SD_GO_IDLE_STATE, 0, 0x95, R1_IN_IDLE_STATUS);
+		if (response == R1_IN_IDLE_STATUS)
+			break;
+	}
 #if defined(SD_DEBUG)
-    if(response != R1_IN_IDLE_STATUS)
-    {
-        debug_printf(" SD Error. NOT Reset to Idle mode.\r\n");
-    }
-    else
-    {
-        debug_printf(" SD in Idle mode\r\n");
-    }
+	if (response != R1_IN_IDLE_STATUS)
+	{
+		SD_DEBUG_PRINT(" SD Error. NOT Reset to Idle mode.\r\n");
+	}
+	else
+	{
+		SD_DEBUG_PRINT(" SD in Idle mode\r\n");
+	}
 #endif
 
-    return response;
+	return response;
 }
 
 
 // OCR BUSY bit is active LOW.
-BOOL SD_BS_Driver::Get_OCR_BUSY()
+BOOL __section("SectionForFlashOperations") SD_BS_Driver::Get_OCR_BUSY()
 {
-    return (g_SD_DeviceRegisters.OCR & OCR_BUSY_BIT) == 0;
+	return (g_SD_DeviceRegisters.OCR & OCR_BUSY_BIT) == 0;
 }
 
-BOOL SD_BS_Driver::Get_OCR_CCS()
+BOOL __section("SectionForFlashOperations") SD_BS_Driver::Get_OCR_CCS()
 {
-    return (g_SD_DeviceRegisters.OCR & OCR_CCS_BIT) != 0;
+	return (g_SD_DeviceRegisters.OCR & OCR_CCS_BIT) != 0;
 }
 
-BYTE SD_BS_Driver::ReadOCR_R3(UINT32* pOCR)
+BYTE __section("SectionForFlashOperations") SD_BS_Driver::ReadOCR_R3(UINT32* pOCR)
 {
-    *pOCR=0;
-     
-    // SD_SEND_OCR
-    BYTE R3response = SD_SendCmdWithR3Resp(SD_READ_OCR, 0, pOCR);
-    
+	*pOCR = 0;
+
+	// SD_SEND_OCR
+	BYTE R3response = SD_SendCmdWithR3Resp(SD_READ_OCR, 0, pOCR);//CMD58
+
 #ifdef SD_DEBUG
-    debug_printf(" SD %s OCR=%08X : BUSY=%d CCS=%d\r\n",(Get_OCR_CCS() ? "HC/XC" : "SC"),
-                   g_SD_DeviceRegisters.OCR, Get_OCR_BUSY(), Get_OCR_CCS()); 
+	SD_DEBUG_PRINT(" SD %s OCR=%08X : BUSY=%d CCS=%d\r\n", (Get_OCR_CCS() ? "HC/XC" : "SC"),
+		g_SD_DeviceRegisters.OCR, Get_OCR_BUSY(), Get_OCR_CCS());
 #endif                   
-    return R3response;
+	return R3response;
 }
 
 // Purpose:
@@ -711,590 +773,649 @@ BYTE SD_BS_Driver::ReadOCR_R3(UINT32* pOCR)
 //    [11:8]supply voltage(VHS)
 //    [7:0]check pattern
 
-BOOL SD_BS_Driver::SD_Cmd_SEND_IF_COND(BOOL isLowVoltageRequired, BOOL *pIs_SD_version1)
+BOOL __section("SectionForFlashOperations") SD_BS_Driver::SD_Cmd_SEND_IF_COND(BOOL isLowVoltageRequired, BOOL *pIs_SD_version1)
 {
-    //send CMD8, check voltage range support and V1.0 vs. V2.0 API
-    UINT32 CMD8_Arg = CMD8_CHECK_PATTERN;
-    BYTE support_voltage = 0;
-    UINT32 supply_voltage;
-   
-   
-    if(isLowVoltageRequired == TRUE)
-        supply_voltage = 2;
-    else
-        supply_voltage = 1;
-   
-    CMD8_Arg |= (supply_voltage << 8);
-    BYTE R7response = SD_SendCmdWithR7Resp(SD_SEND_IF_COND, CMD8_Arg, &support_voltage);
-    // check if command was successful?
-    if(R7response == R7_ILLEGAL_COOMMAND)
-    {
-        // V1.0 cards return illegal command response.
-   
-#ifdef SD_DEBUG
-	    debug_printf(" SD spec version 1.0 [Assume SD or MMC 3.0V/3.3V]\r\n");
-#endif
-	 
-        support_voltage = 1; // Assume SD or MMC 3.0 V or 3.3 V 
-        *pIs_SD_version1 = TRUE;
-    }
-    else if (R7response == R7_IN_IDLE_STATUS)
-    {	
-        // as it responded to CMD8, must be type 2 card!
+	//send CMD8, check voltage range support and V1.0 vs. V2.0 API
+	UINT32 CMD8_Arg = CMD8_CHECK_PATTERN;
+	BYTE support_voltage = 0;
+	UINT32 supply_voltage;
 
+//	*pIs_SD_version1 = TRUE; // assume version 1 unless found to be 2.0+
+
+	if (isLowVoltageRequired == TRUE)
+		supply_voltage = 2;
+	else
+		supply_voltage = 1;
 #ifdef SD_DEBUG
-	    debug_printf(" SD spec version 2.0\r\n");
+	SD_DEBUG_PRINT(" SD_SEND_IF_COND (CMD8) supply_voltage=%d\r\n",supply_voltage);
 #endif
 
-        *pIs_SD_version1 = FALSE;
-    }
-  
-    if(support_voltage != supply_voltage) 
-    {
-	    return FALSE;
+	CMD8_Arg |= (supply_voltage << 8);
+	BYTE R7response = SD_SendCmdWithR7Resp(SD_SEND_IF_COND, CMD8_Arg, &support_voltage); //CMD08
+	// check if command was successful?
+	if (R7response == R7_ILLEGAL_COOMMAND)
+	{
+		// V1.0 cards return illegal command response.
+#ifdef SD_DEBUG
+		SD_DEBUG_PRINT(" SD spec version 1.0 [Assume SD or MMC 3.0V/3.3V]\r\n");
+#endif
+
+		support_voltage = 1; // Assume SD or MMC 3.0 V or 3.3 V 
+		*pIs_SD_version1 = TRUE;
 	}
-  
-    return TRUE;
+	else 
+	{
+		// as it responded to CMD8, must be type 2 card!
+
+#ifdef SD_DEBUG
+		SD_DEBUG_PRINT(" SD spec version 2.0\r\n");
+#endif
+
+		*pIs_SD_version1 = FALSE;
+
+		if (R7response != R7_IN_IDLE_STATUS)
+		{
+#ifdef SD_DEBUG
+			SD_DEBUG_PRINT(" Unexpected Status R1=%01X\r\n", R7response);
+#endif
+//			return FALSE;
+		}
+	}
+
+
+	if (support_voltage != supply_voltage)
+	{
+#ifdef SD_DEBUG
+		SD_DEBUG_PRINT(" support_voltage != supply_voltage (CMD8) supply_voltage=%d support_voltage=%d return FALSE\r\n",supply_voltage,support_voltage);
+#endif
+		return FALSE;
+	}
+
+	return TRUE;
 }
-  
-BOOL SD_BS_Driver::SD_Set_In_READY_STATUS(BOOL isHC_XC_Supported)
-{  
-    int i;
-    BYTE response; 
-    
-    for(i=0; i<0x7fff; i++)
-    {
-        //send CMD55 + ACMD41 until return 0x00 for type 1 cards
-        SD_SendCmdWithR1Resp(SD_APP_CMD, 0, 0xFF, R1_IN_IDLE_STATUS);
 
-        response = SD_SendCmdWithR1Resp(SD_SEND_OP_COND, (isHC_XC_Supported ? CMD41_HCS_PATTERN : 0), 0xFF, R1_IN_READY_STATUS);
 
-        if(response == R1_IN_READY_STATUS)
-        {
-            return TRUE;
-        }
-        
-        // If HC or XC supported, try the V2 command
-        if (isHC_XC_Supported)
-        {
-            // use v2.0 command
-            response = SD_SendCmdWithR1Resp(SD_V2_SEND_OP_COND, 0, 0xFF, R1_IN_READY_STATUS);
-            if(response == R1_IN_READY_STATUS)
-            {
-                return TRUE;
-            }
-        }
-    }
-  
+BOOL __section("SectionForFlashOperations") SD_BS_Driver::SD_Set_In_READY_STATUS(BOOL isHC_XC_Supported)
+{
+	int i;
+	BYTE response;
+
+	for (i = 0; i < 0x7fff; i++) // many retries!
+	{
+		if (!SDCardIsInserted())
+		{
+			return FALSE;
+		}
+
+		//send CMD55 + ACMD41 until return 0x00 for type 1 cards
+		//SD_DEBUG_PRINT(" SD APP_CMD : -> R1_IN_IDLE_STATUS %d\r\n",i);
+		SD_SendCmdWithR1Resp(SD_APP_CMD, 0, 0xFF, R1_IN_IDLE_STATUS); // CMD55
 
 #if defined(SD_DEBUG)
-    debug_printf(" SD: Card Not in READY_STATUS %d\r\n",response);
+		if (!isHC_XC_Supported)
+			SD_DEBUG_PRINT(" SD SEND_OP_COND[0] : V1 -> R1_IN_READY_STATUS %d\r\n",i);
+		else
+			SD_DEBUG_PRINT(" SD SEND_OP_COND[HCS] : V2 -> R1_IN_READY_STATUS %d\r\n",i);
 #endif
-  
-    return FALSE;
+
+		response = SD_SendCmdWithR1Resp(SD_SEND_OP_COND, (isHC_XC_Supported ? CMD41_HCS_PATTERN : 0), 0xFF, R1_IN_READY_STATUS, RESPONSE_TIME_OUT_SHORT);//CMD41, try 100 times.
+
+		if (response == R1_IN_READY_STATUS)
+		{
+			return TRUE;
+		}
+
+		// TODO: Check if supported voltage ok.
+		///response = ReadOCR_R3(&g_SD_DeviceRegisters.OCR); //// ACMD58
+
+		///SD_DEBUG_PRINT(" SD CCS=%d : SD%s\r\n", Get_OCR_CCS(),(Get_OCR_CCS()==0 ? "SD":"HC/XD"));
+
+		// If HC or XC supported, try the V2 command
+		if (isHC_XC_Supported)
+		{
+			//SD_DEBUG_PRINT(" SD SD_V2_SEND_OP_COND[0] :  V2 -> R1_IN_READY_STATUS %d\r\n",i);
+
+			// use v2.0 command
+			response = SD_SendCmdWithR1Resp(SD_V2_SEND_OP_COND, 0, 0xFF, R1_IN_READY_STATUS);//CMD01
+			if (response == R1_IN_READY_STATUS)
+			{
+				return TRUE;
+			}
+		}
+	}
+
+
+#if defined(SD_DEBUG)
+	SD_DEBUG_PRINT(" SD: Card Not in READY_STATUS %d\r\n", response);
+#endif
+
+	return FALSE;
 }
 
 
 void SD_BS_Driver::InsertISR(GPIO_PIN Pin, BOOL PinState, void* Param)
 {
-    FS_MountVolume("SD1", 0, 0, g_SD_BL_Config.Device);
+	FS_MountVolume("SD1", 0, 0, g_SD_BL_Config.Device);
 }
 
 void SD_BS_Driver::EjectISR(GPIO_PIN Pin, BOOL PinState, void* Param)
 {
-    FS_UnmountVolume(g_SD_BL_Config.Device);
+	FS_UnmountVolume(g_SD_BL_Config.Device);
 }
 
 BOOL SD_BS_Driver::ChipUnInitialize(void *context)
 {
-    return TRUE;
+	return TRUE;
 }
 
 BOOL SD_BS_Driver::ReadProductID(void *context, BYTE *ManufacturerCode, BYTE *OEMID, BYTE *ProductName)
 {
-    BYTE regCID[16];
-    BYTE response;
-   
-  	GLOBAL_LOCK(irq);
-    CPU_SPI_Xaction_Start(g_SD_BL_Config.SPI);
+	BYTE regCID[16];
+	BYTE response;
 
-    // enable SD card
-    SD_CsSetLow();
 
-    //CMD10 to CID
-    response = SD_SendCmdWithR1Resp(SD_SEND_CID, 0, 0xFF, SD_START_DATA_BLOCK_TOKEN);
+	//SD_DEBUG_PRINTF(" SD ReadProductID\r\n");
 
-    if(response != SD_START_DATA_BLOCK_TOKEN)
-    {
-        SD_CsSetHigh();
-        CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
-        return FALSE;
-    }
-    else
-    {
-        // receive one sector data
-        SPIRecvCount(regCID, CSD_CID_LENGTH, 0);
+
+	GLOBAL_LOCK(irq);
+	CPU_SPI_Xaction_Start(g_SD_BL_Config.SPI);
+
+	// enable SD card
+	SD_CsSetLow();
+
+	//CMD10 to CID
+	response = SD_SendCmdWithR1Resp(SD_SEND_CID, 0, 0xFF, SD_START_DATA_BLOCK_TOKEN);
+
+	if (response != SD_START_DATA_BLOCK_TOKEN)
+	{
+		SD_CsSetHigh();
+		CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
+		return FALSE;
+	}
+	else
+	{
+		// receive one sector data
+		SPIRecvCount(regCID, CSD_CID_LENGTH, 0);
 
 #ifndef SD_DEBUG
-        SPISendByte(DUMMY);
-        SPISendByte(DUMMY);
+		SPISendByte(DUMMY);
+		SPISendByte(DUMMY);
 #else
-        // receive 16 bit CRC
-        BYTE crc1 = SPISendByte(DUMMY);
-        BYTE crc2 = SPISendByte(DUMMY);
+		// receive 16 bit CRC
+		BYTE crc1 = SPISendByte(DUMMY);
+		BYTE crc2 = SPISendByte(DUMMY);
 
-	    debug_printf(" SD ReadProductID CID: %02X %02X %02X %02X %02X %02X %02X %02X - " 
-	                      "%02X %02X %02X %02X %02X %02X %02X %02X - %02X %02X\r\n",
-						   regCID[0],regCID[1],regCID[2],regCID[3],
-						   regCID[4],regCID[5],regCID[6],regCID[7],
-						   regCID[8],regCID[9],regCID[10],regCID[11],
-						   regCID[12],regCID[13],regCID[14],regCID[15],
-						   crc1,crc2						   
-						   );
+		SD_DEBUG_PRINT(" SD ReadProductID CID: %02X %02X %02X %02X %02X %02X %02X %02X - "
+			"%02X %02X %02X %02X %02X %02X %02X %02X - %02X %02X\r\n",
+			regCID[0], regCID[1], regCID[2], regCID[3],
+			regCID[4], regCID[5], regCID[6], regCID[7],
+			regCID[8], regCID[9], regCID[10], regCID[11],
+			regCID[12], regCID[13], regCID[14], regCID[15],
+			crc1, crc2
+			);
 #endif
-    }
+	}
 
-    *ManufacturerCode = regCID[0];
+	*ManufacturerCode = regCID[0];
 
-    memcpy(OEMID, &regCID[1], 2);
+	memcpy(OEMID, &regCID[1], 2);
 
-    memcpy(ProductName, &regCID[3], 5);
+	memcpy(ProductName, &regCID[3], 5);
 
-    CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
+	CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
 
-    // disable SD card
-    SD_CsSetHigh();
+	// disable SD card
+	SD_CsSetHigh();
 
-    return TRUE;
+
+#if defined(SD_DEBUG)
+	SD_DEBUG_PRINT("ReadProductID %s!!\r\n", ProductName);
+#endif
+
+	return TRUE;
 }
 
 const BlockDeviceInfo *SD_BS_Driver::GetDeviceInfo(void *context)
 {
-    SD_BLOCK_CONFIG *config = (SD_BLOCK_CONFIG*)context;
+	SD_BLOCK_CONFIG *config = (SD_BLOCK_CONFIG*)context;
 
-    return config->BlockDeviceInformation;
+	return config->BlockDeviceInformation;
 }
 
-BOOL SD_BS_Driver::ReadSector(SectorAddress sectorAddress, UINT32 Offset, UINT32 NumBytes, BYTE* pSectorBuff, UINT32 BytesPerSector)
+BOOL __section("SectionForFlashOperations") SD_BS_Driver::ReadSector(SectorAddress sectorAddress, UINT32 Offset, UINT32 NumBytes, BYTE* pSectorBuff, UINT32 BytesPerSector)
 {
-    BYTE response;
-    UINT32 leftOver;
-    bool   fResponse = false;
+	BYTE response;
+	UINT32 leftOver;
+	bool   fResponse = false;
 
-    NumBytes = (NumBytes + Offset > BytesPerSector ? BytesPerSector - Offset : NumBytes);
-    leftOver = BytesPerSector - (Offset + NumBytes);
+	NumBytes = (NumBytes + Offset > BytesPerSector ? BytesPerSector - Offset : NumBytes);
+	leftOver = BytesPerSector - (Offset + NumBytes);
 
-    for(int i=0; i<10; i++)
-    {
-        // enable SD card
-        SD_CsSetLow();
 
-        // send CMD17 and wait for DATA_BLOCK_TOKEN
-        response = SD_SendCmdWithR1Resp(SD_READ_SINGLE_BLOCK, sectorAddress << 9, 0xff, SD_START_DATA_BLOCK_TOKEN, 10000);
+	//SD_DEBUG_PRINTF("SD ReadSector: NumBytes=%d\r\n",NumBytes);
 
-        if(response == SD_START_DATA_BLOCK_TOKEN)
-        {
-            fResponse = true;
-            break;
-        }
 
-        SD_CsSetHigh();
-    }
+	for (int i = 0; i < 10; i++)
+	{
+		// enable SD card
+		SD_CsSetLow();
 
-    if(fResponse)
-    {
-        // receive one sector data
-        SPIRecvCount(pSectorBuff, BytesPerSector, Offset);
+		// use byte address for sc, block address for hc & xc
+		UINT32 dataAddress = Get_OCR_CCS() ? sectorAddress : sectorAddress << 9;
 
-        while(leftOver--)
-        {
-            SPISendByte(DUMMY);
-        }
+		// send CMD17 and wait for DATA_BLOCK_TOKEN
+		response = SD_SendCmdWithR1Resp(SD_READ_SINGLE_BLOCK, dataAddress, 0xff, SD_START_DATA_BLOCK_TOKEN, RESPONSE_TIME_OUT_LONGER);
 
-        // receive 16 bit CRC
-        SPISendByte(DUMMY);
-        SPISendByte(DUMMY);		
-#if defined(SD_DEBUG)		
-		DumpSector(pSectorBuff, BytesPerSector, Offset);
-#endif
-    }
-    else
-    //can't get valid response after CMD17
-    {
-        SD_CsSetHigh();
-        return FALSE;
-    }
+		if (response == SD_START_DATA_BLOCK_TOKEN)
+		{
+			fResponse = true;
+			break;
+		}
 
-    //disable select SD card
-    SD_CsSetHigh();
-    return TRUE;
+		SD_CsSetHigh();
+	}
+
+	if (fResponse)
+	{
+		// receive one sector data
+		SPIRecvCount(pSectorBuff, BytesPerSector, Offset);
+
+
+
+		while (leftOver--)
+		{
+			SPISendByte(DUMMY);
+		}
+
+		// receive 16 bit CRC
+		SPISendByte(DUMMY);
+		SPISendByte(DUMMY);
+		//#if defined(SD_DEBUG_DUMP_SECTOR)		
+		//		DumpSector(pSectorBuff, BytesPerSector, Offset);
+		//#endif
+	}
+	else
+		//can't get valid response after CMD17
+	{
+		SD_CsSetHigh();
+		return FALSE;
+	}
+
+	//disable select SD card
+	SD_CsSetHigh();
+	return TRUE;
 }
 #define DUMP_BUFFER_SIZE 16384
 
-#if defined(SD_DEBUG)	
+#if defined(SD_DEBUG_DUMP_SECTOR)	
 void DumpSector(BYTE* pSectorBuff, UINT32 BytesPerSector, UINT32 Offset)
 {
-	debug_printf("DumpSector: %p %d %d\r\n",pSectorBuff,BytesPerSector,Offset);
+	SD_DEBUG_PRINT("DumpSector: %p %d %d\r\n", pSectorBuff, BytesPerSector, Offset);
 
-    char pszBuffer[DUMP_BUFFER_SIZE];
-	BYTE *stackbytes = pSectorBuff+Offset;
+	char pszBuffer[DUMP_BUFFER_SIZE];
+	BYTE *stackbytes = pSectorBuff + Offset;
 
 
-	
-	for(UINT32 i = 0; i < (BytesPerSector / 16); i++)
-	{	
+
+	for (UINT32 i = 0; i < (BytesPerSector / 16); i++)
+	{
 		size_t len = 0;
-		memset(pszBuffer,0,sizeof(pszBuffer));
-		
-		len+=hal_snprintf(&pszBuffer[len],DUMP_BUFFER_SIZE-len,"[0x%08x] :", (UINT32)&stackbytes[i*16]);
-		for(UINT32 j = 0; j < 16; j++)
+		memset(pszBuffer, 0, sizeof(pszBuffer));
+
+		len += hal_snprintf(&pszBuffer[len], DUMP_BUFFER_SIZE - len, "[0x%08x] :", (UINT32)&stackbytes[i * 16]);
+		for (UINT32 j = 0; j < 16; j++)
 		{
 			// don't cause a data abort here!
-			if((UINT32) (/*&stackbytes[*/i*16 + j/*]*/) < (UINT32) BytesPerSector)
+			if ((UINT32)(/*&stackbytes[*/i * 16 + j/*]*/) < (UINT32)BytesPerSector)
 			{
-				len+=hal_snprintf(&pszBuffer[len],DUMP_BUFFER_SIZE-len," %02x", stackbytes[i*16 + j]);
+				len += hal_snprintf(&pszBuffer[len], DUMP_BUFFER_SIZE - len, " %02x", stackbytes[i * 16 + j]);
 			}
 			else
 			{
-				len+=hal_snprintf(&pszBuffer[len],DUMP_BUFFER_SIZE-len,"   ");
+				len += hal_snprintf(&pszBuffer[len], DUMP_BUFFER_SIZE - len, "   ");
 			}
 		}
-		len+=hal_snprintf(&pszBuffer[len],DUMP_BUFFER_SIZE-len," ");
+		len += hal_snprintf(&pszBuffer[len], DUMP_BUFFER_SIZE - len, " ");
 
-		for(UINT32 j = 0; j < 16; j++)
+		for (UINT32 j = 0; j < 16; j++)
 		{
-			if((UINT32) (/*&stackbytes[*/i*16 + j/*]*/) < (UINT32) BytesPerSector)
+			if ((UINT32)(/*&stackbytes[*/i * 16 + j/*]*/) < (UINT32)BytesPerSector)
 			{
-				len+=hal_snprintf(&pszBuffer[len],DUMP_BUFFER_SIZE-len,"%c", (stackbytes[i*16 + j] >= ' ') ? stackbytes[i*16 + j] : '.');
+				len += hal_snprintf(&pszBuffer[len], DUMP_BUFFER_SIZE - len, "%c", (stackbytes[i * 16 + j] >= ' ') ? stackbytes[i * 16 + j] : '.');
 			}
 		}
-		len+=hal_snprintf(&pszBuffer[len],DUMP_BUFFER_SIZE-len,"\r\n");
-		
+		len += hal_snprintf(&pszBuffer[len], DUMP_BUFFER_SIZE - len, "\r\n");
+
 		debug_printf(pszBuffer);
 	}
-	
+
 }
 #endif
 
-BOOL SD_BS_Driver::Read(void *context, ByteAddress phyAddress, UINT32 NumBytes, BYTE *pSectorBuff)
-{
-    NATIVE_PROFILE_HAL_DRIVERS_FLASH();
-    UINT32 RangeIndex;
-    UINT32 RegionIndex;
-    UINT32 BytesPerSector;
+BOOL __section("SectionForFlashOperations") SD_BS_Driver::Read(void *context, ByteAddress Address, UINT32 NumBytes, BYTE *pSectorBuff) {
+	NATIVE_PROFILE_HAL_DRIVERS_FLASH();
 
-    BLOCK_CONFIG* pConfig = (BLOCK_CONFIG*)context;
-
-    if(pConfig->BlockDeviceInformation->FindRegionFromAddress(phyAddress, RegionIndex, RangeIndex))
-    {
-        ByteAddress StartSector = pConfig->BlockDeviceInformation->PhysicalToSectorAddress( &pConfig->BlockDeviceInformation->Regions[RegionIndex], phyAddress);
-
-        BytesPerSector = pConfig->BlockDeviceInformation->BytesPerSector;
-
-        CHIP_WORD *pBuf = (CHIP_WORD*)pSectorBuff;
-
-        UINT32 offset = phyAddress - (StartSector * pConfig->BlockDeviceInformation->BytesPerSector);
-
-        UINT32 bytes  = (NumBytes + offset > BytesPerSector ? BytesPerSector - offset : NumBytes);
-
-		    GLOBAL_LOCK(irq);
-
-        CPU_SPI_Xaction_Start(g_SD_BL_Config.SPI);
-
-        while(NumBytes > 0)
-        {
-            if(!ReadSector(StartSector, offset, bytes, pBuf, BytesPerSector))
-            {
-                CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
-
-                return FALSE;
-            }
-            
-            offset    = 0;
-            pBuf      = (CHIP_WORD*)((UINT32)pBuf + bytes);
-            NumBytes -= bytes;
-            StartSector++;
-
-            bytes = __min(BytesPerSector, NumBytes);
-        }
-
-        CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
-        
-        return TRUE;
-    }
-    else
-    {
-        return FALSE;
-    }
+	return ExtRead(context, Address, NumBytes, pSectorBuff);
 }
 
-BOOL SD_BS_Driver::Write(void *context, ByteAddress phyAddr, UINT32 NumBytes, BYTE *pSectorBuff, BOOL ReadModifyWrite )
+BOOL __section("SectionForFlashOperations") SD_BS_Driver::ExtRead(void *context, UINT64 Address, UINT32 NumBytes, BYTE *pSectorBuff)
 {
-    NATIVE_PROFILE_PAL_FLASH();
+	NATIVE_PROFILE_HAL_DRIVERS_FLASH();
 
-    return WriteX( context, phyAddr, NumBytes, pSectorBuff, ReadModifyWrite, TRUE );
+	BLOCK_CONFIG* pConfig = (BLOCK_CONFIG*)context;
+	//SD_DEBUG_PRINTF(" SD Read: NumBytes=%d\r\n",NumBytes);
+
+	UINT32 BytesPerSector = pConfig->BlockDeviceInformation->BytesPerSector;
+
+	SectorAddress StartSector = (SectorAddress)(Address / BytesPerSector);
+	UINT32 offset = (UINT32)(Address % BytesPerSector);
+
+	CHIP_WORD *pBuf = (CHIP_WORD*)pSectorBuff;
+
+	UINT32 bytes = (NumBytes + offset > BytesPerSector ? BytesPerSector - offset : NumBytes);
+
+	GLOBAL_LOCK(irq);
+
+	CPU_SPI_Xaction_Start(g_SD_BL_Config.SPI);
+
+	while (NumBytes > 0)
+	{
+		if (!ReadSector(StartSector, offset, bytes, pBuf, BytesPerSector))
+		{
+			CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
+
+			return FALSE;
+		}
+
+		offset = 0;
+		pBuf = (CHIP_WORD*)((UINT32)pBuf + bytes);
+		NumBytes -= bytes;
+		StartSector++;
+
+		bytes = __min(BytesPerSector, NumBytes);
+	}
+
+	CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
+
+	return TRUE;
 }
 
-BOOL SD_BS_Driver::Memset(void *context, ByteAddress phyAddr, UINT8 Data, UINT32 NumBytes )
+BOOL SD_BS_Driver::Write(void *context, ByteAddress Address, UINT32 NumBytes, BYTE *pSectorBuff, BOOL ReadModifyWrite)
 {
-    NATIVE_PROFILE_PAL_FLASH();
+	NATIVE_PROFILE_PAL_FLASH();
 
-    return WriteX( context, phyAddr, NumBytes, &Data, TRUE, FALSE );
+	return WriteX(context, Address, NumBytes, pSectorBuff, ReadModifyWrite, TRUE);
 }
 
-BOOL SD_BS_Driver::WriteX(void *context, ByteAddress phyAddr, UINT32 NumBytes, BYTE *pSectorBuff, BOOL ReadModifyWrite, BOOL fIncrementDataPtr )
+
+
+BOOL SD_BS_Driver::ExtWrite(void *context, UINT64 Address, UINT32 NumBytes, BYTE *pSectorBuff, BOOL ReadModifyWrite) {
+	NATIVE_PROFILE_PAL_FLASH();
+
+	return WriteX(context, Address, NumBytes, pSectorBuff, ReadModifyWrite, TRUE);
+}
+
+BOOL SD_BS_Driver::Memset(void *context, ByteAddress Address, UINT8 Data, UINT32 NumBytes)
 {
-    NATIVE_PROFILE_PAL_FLASH();
+	NATIVE_PROFILE_PAL_FLASH();
 
-    UINT32 RangeIndex;
-    UINT32 RegionIndex;
-    UINT32 BytesPerSector;
-    UINT32 offset;
-    UINT32 bytes;
-    BYTE response;
+	return WriteX(context, Address, NumBytes, &Data, TRUE, FALSE);
+}
 
-    BLOCK_CONFIG* pConfig = (BLOCK_CONFIG*)context;
+BOOL SD_BS_Driver::WriteX(void *context, UINT64 Address, UINT32 NumBytes, BYTE *pSectorBuff, BOOL ReadModifyWrite, BOOL fIncrementDataPtr)
+{
+	NATIVE_PROFILE_PAL_FLASH();
 
-    CHIP_WORD *pData, *pWrite;
+	BYTE response;
 
-    // find the corresponding region     
-    if(!pConfig->BlockDeviceInformation->FindRegionFromAddress(phyAddr, RegionIndex, RangeIndex))
-        return FALSE;
+	CHIP_WORD *pData, *pWrite;
 
-    ByteAddress StartSector = pConfig->BlockDeviceInformation->PhysicalToSectorAddress( &pConfig->BlockDeviceInformation->Regions[RegionIndex], phyAddr);
+	BLOCK_CONFIG* pConfig = (BLOCK_CONFIG*)context;
+	UINT32 BytesPerSector = pConfig->BlockDeviceInformation->BytesPerSector;
 
-    pData = (CHIP_WORD*)pSectorBuff;
-    BytesPerSector = pConfig->BlockDeviceInformation->BytesPerSector;
+	SectorAddress StartSector = (SectorAddress)(Address / BytesPerSector);
+	UINT32 offset = (UINT32)(Address % BytesPerSector);
 
-    GLOBAL_LOCK(irq);
+	pData = (CHIP_WORD*)pSectorBuff;
 
-    offset = phyAddr - (StartSector * BytesPerSector);
+	UINT32 bytes = (NumBytes + offset > BytesPerSector ? BytesPerSector - offset : NumBytes);
 
-    bytes = (NumBytes + offset > BytesPerSector ? BytesPerSector - offset : NumBytes);
+	GLOBAL_LOCK(irq);
 
-    CPU_SPI_Xaction_Start(g_SD_BL_Config.SPI);
+	CPU_SPI_Xaction_Start(g_SD_BL_Config.SPI);
 
-    while(NumBytes > 0)
-    {
-        // if we are using memset, or if the bytes written are less than the BytesPerSector then do read/modify/write
-        if(!fIncrementDataPtr || (bytes != BytesPerSector))
-        {   
-            if(bytes != BytesPerSector)
-            {
-                if(!ReadSector(StartSector, 0, BytesPerSector, s_sectorBuff, BytesPerSector))
-                {
-                    CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
-                    return FALSE;
-                }
+	while (NumBytes > 0)
+	{
+		// if we are using memset, or if the bytes written are less than the BytesPerSector then do read/modify/write
+		if (!fIncrementDataPtr || (bytes != BytesPerSector))
+		{
+			if (bytes != BytesPerSector)
+			{
+				if (!ReadSector(StartSector, 0, BytesPerSector, s_sectorBuff, BytesPerSector))
+				{
+					CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
+					return FALSE;
+				}
 
-            }
-            
-            pWrite = (CHIP_WORD*)&s_sectorBuff[0];
+			}
 
-            if(fIncrementDataPtr)
-            {
-                memcpy(&pWrite[offset], pData, bytes);
-            }
-            else
-            {
-                memset(&pWrite[offset], *pData, bytes);
-            }
-        }
-        else
-        {
-            pWrite = pData;
-        }
+			pWrite = (CHIP_WORD*)&s_sectorBuff[0];
 
-        // select SD CS
-        SD_CsSetLow();
-        
-        // send CMD24 --read single block data
-        response = SD_SendCmdWithR1Resp(SD_WRITE_SINGLE_BLOCK, StartSector << 9, 0xff, R1_IN_READY_STATUS);
+			if (fIncrementDataPtr)
+			{
+				memcpy(&pWrite[offset], pData, bytes);
+			}
+			else
+			{
+				memset(&pWrite[offset], *pData, bytes);
+			}
+		}
+		else
+		{
+			pWrite = pData;
+		}
 
-        if(response == R1_IN_READY_STATUS)
-        {
-            SPISendByte(SD_START_DATA_BLOCK_TOKEN); // send DATA_BLOCK_TOKEN
+		// select SD CS
+		SD_CsSetLow();
 
-            // send data
-            SPISendCount(pWrite, BytesPerSector);
+		// use byte address for sc, block address for hc & xc
+		UINT32 dataAddress = Get_OCR_CCS() ? StartSector : StartSector << 9;
 
-            // send CRC
-            SPISendByte(0xff);
-            SPISendByte(0xff);
+		// send CMD24 --write single block data
+		response = SD_SendCmdWithR1Resp(SD_WRITE_SINGLE_BLOCK, dataAddress, 0xff, R1_IN_READY_STATUS);
 
-            // wait for end of write busy
-            response = SD_CheckBusy();
-        }
+		if (response == R1_IN_READY_STATUS)
+		{
+			SPISendByte(SD_START_DATA_BLOCK_TOKEN); // send DATA_BLOCK_TOKEN
 
-        //disable SD card CS
-        SD_CsSetHigh();
+			// send data
+			SPISendCount(pWrite, BytesPerSector);
 
-        if(fIncrementDataPtr) pData = (CHIP_WORD*)((UINT32)pData + bytes);
+			// send CRC
+			SPISendByte(0xff);
+			SPISendByte(0xff);
 
-        NumBytes   -= bytes;
-        offset      = 0;
-        StartSector++;
-        bytes = __min(BytesPerSector, NumBytes);        
-    }
+			// wait for end of write busy
+			response = SD_CheckBusy();
+		}
 
-    CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
+		//disable SD card CS
+		SD_CsSetHigh();
 
-    return TRUE;
+		if (fIncrementDataPtr) pData = (CHIP_WORD*)((UINT32)pData + bytes);
+
+		NumBytes -= bytes;
+		offset = 0;
+		StartSector++;
+		bytes = __min(BytesPerSector, NumBytes);
+	}
+
+	CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
+
+	return TRUE;
 
 }
 
 BOOL SD_BS_Driver::GetSectorMetadata(void* context, ByteAddress SectorStart, SectorMetadata* pSectorMetadata)
 {
-    return TRUE;
+	return TRUE;
 }
 
 BOOL SD_BS_Driver::SetSectorMetadata(void* context, ByteAddress SectorStart, SectorMetadata* pSectorMetadata)
 {
-    return TRUE;
+	return TRUE;
 }
 
-BOOL SD_BS_Driver::IsBlockErased(void *context, ByteAddress phyAddress, UINT32 BlockLength)
+BOOL SD_BS_Driver::IsBlockErased(void *context, ByteAddress BlockStartAddress, UINT32 BlockLength)
 {
 
-    NATIVE_PROFILE_HAL_DRIVERS_FLASH();
+	NATIVE_PROFILE_HAL_DRIVERS_FLASH();
 
-    UINT32 RegionIndex;
-    UINT32 RangeIndex;
-    UINT32 SectorsPerBlock;
-    UINT32 BytesPerSector;
+	UINT32 RegionIndex;
+	UINT32 RangeIndex;
+	UINT32 SectorsPerBlock;
+	UINT32 BytesPerSector;
 
-    BLOCK_CONFIG* pConfig = (BLOCK_CONFIG*)context;
+	BLOCK_CONFIG* pConfig = (BLOCK_CONFIG*)context;
 
-    // this is static buffer, as the driver is current tailor for SD, a page size is 2048 bytes.
-    BYTE *pSectorBuff = s_sectorBuff;
+	// this is static buffer, as the driver is current tailor for SD, a page size is 2048 bytes.
+	BYTE *pSectorBuff = s_sectorBuff;
 
 
-    BYTE state_After_Erase = g_SD_BL_Config.State_After_Erase ? 0xFF : 0x00;
+	BYTE state_After_Erase = g_SD_BL_Config.State_After_Erase ? 0xFF : 0x00;
 
-    if(!pConfig->BlockDeviceInformation->FindRegionFromAddress(phyAddress, RegionIndex, RangeIndex))
-        return FALSE;
+	if (!pConfig->BlockDeviceInformation->FindRegionFromAddress(BlockStartAddress, RegionIndex, RangeIndex))
+		return FALSE;
 
-    ByteAddress StartSector = pConfig->BlockDeviceInformation->PhysicalToSectorAddress( &pConfig->BlockDeviceInformation->Regions[RegionIndex], phyAddress);
+	ByteAddress StartSector = pConfig->BlockDeviceInformation->PhysicalToSectorAddress(&pConfig->BlockDeviceInformation->Regions[RegionIndex], BlockStartAddress);
 
-    const BlockRegionInfo* pRegion = &pConfig->BlockDeviceInformation->Regions[RegionIndex];
+	const BlockRegionInfo* pRegion = &pConfig->BlockDeviceInformation->Regions[RegionIndex];
 
-    // as the input arg Sector may not be the startSector address of a block,
-    // we need to recalculate it.
-    BytesPerSector  = pConfig->BlockDeviceInformation->BytesPerSector;
-    SectorsPerBlock = (pRegion->BytesPerBlock / BytesPerSector);
+	// as the input arg Sector may not be the startSector address of a block,
+	// we need to recalculate it.
+	BytesPerSector = pConfig->BlockDeviceInformation->BytesPerSector;
+	SectorsPerBlock = (pRegion->BytesPerBlock / BytesPerSector);
 
-    StartSector = (StartSector / SectorsPerBlock) * SectorsPerBlock;
-    
-    for(UINT32 i = 0; i < SectorsPerBlock; i++)
-    {
-        SD_BS_Driver::Read(context, StartSector, BytesPerSector, pSectorBuff);
-        for(UINT32 j = 0; j < BytesPerSector; j++)
-        {
-            if(pSectorBuff[j] != state_After_Erase)
-            {
-                return FALSE;
-            }
-        }
-    }
-    return TRUE;
+	StartSector = (StartSector / SectorsPerBlock) * SectorsPerBlock;
+
+	for (UINT32 i = 0; i < SectorsPerBlock; i++)
+	{
+		SD_BS_Driver::Read(context, StartSector, BytesPerSector, pSectorBuff);
+		for (UINT32 j = 0; j < BytesPerSector; j++)
+		{
+			if (pSectorBuff[j] != state_After_Erase)
+			{
+				return FALSE;
+			}
+		}
+	}
+	return TRUE;
 }
 
 
 BOOL SD_BS_Driver::EraseSectors(SectorAddress Address, INT32 SectorCount)
 {
-    BYTE response;
+	BYTE response;
 
-    SD_CsSetLow(); // cs low
+	SD_CsSetLow(); // cs low
 
-    //send ERASE_WR_BLK_START command
-    response = SD_SendCmdWithR1Resp(SD_ERASE_WR_BLK_START, Address << 9, 0xff, R1_IN_READY_STATUS);
+	//use byte address for sc, block address for hc & xc
+	UINT32 dataAddress = Get_OCR_CCS() ? Address : Address << 9;
 
-    if(response != R1_IN_READY_STATUS)
-    {
-        SD_CsSetHigh();
-        return FALSE;
-    }
+	//send ERASE_WR_BLK_START command
+	response = SD_SendCmdWithR1Resp(SD_ERASE_WR_BLK_START, dataAddress, 0xff, R1_IN_READY_STATUS);
 
-    //send ERASE_WR_BLK_END command
-    response = SD_SendCmdWithR1Resp(SD_ERASE_WR_BLK_END, (Address + SectorCount - 1) << 9, 0xff, R1_IN_READY_STATUS);
+	if (response != R1_IN_READY_STATUS)
+	{
+		SD_CsSetHigh();
+		return FALSE;
+	}
 
-    if(response != R1_IN_READY_STATUS)
-    {
-        SD_CsSetHigh();
-        return FALSE;
-    }
+	Address += SectorCount - 1; // end address
 
-    // send erase command
-    response = SD_SendCmdWithR1Resp(SD_ERASE, 0xffffffff, 0xff, R1_IN_READY_STATUS);
+	// use byte address for sc, block address for hc & xc
+	dataAddress = Get_OCR_CCS() ? Address : Address << 9;
 
-    if(response != R1_IN_READY_STATUS)
-    {
-        SD_CsSetHigh();
-        return FALSE;
-    }
+	//send ERASE_WR_BLK_END command
+	response = SD_SendCmdWithR1Resp(SD_ERASE_WR_BLK_END, dataAddress, 0xff, R1_IN_READY_STATUS);
 
-    // wait for IDLE
-    SD_CheckBusy();
+	if (response != R1_IN_READY_STATUS)
+	{
+		SD_CsSetHigh();
+		return FALSE;
+	}
 
-    SD_CsSetHigh();
+	// send erase command
+	response = SD_SendCmdWithR1Resp(SD_ERASE, 0xffffffff, 0xff, R1_IN_READY_STATUS);
 
-    return TRUE;
+	if (response != R1_IN_READY_STATUS)
+	{
+		SD_CsSetHigh();
+		return FALSE;
+	}
+
+	// wait for IDLE
+	SD_CheckBusy();
+
+	SD_CsSetHigh();
+
+	return TRUE;
 
 }
 
-BOOL SD_BS_Driver::EraseBlock(void *context, ByteAddress phyAddr)
+BOOL SD_BS_Driver::EraseBlock(void *context, ByteAddress Address)
 {
-    NATIVE_PROFILE_HAL_DRIVERS_FLASH();
+	NATIVE_PROFILE_HAL_DRIVERS_FLASH();
 
-    UINT32 RangeIndex;
-    UINT32 RegionIndex;
+	UINT32 RangeIndex;
+	UINT32 RegionIndex;
 
-    BLOCK_CONFIG* pConfig = (BLOCK_CONFIG*)context;
+	BLOCK_CONFIG* pConfig = (BLOCK_CONFIG*)context;
 
-    if(!pConfig->BlockDeviceInformation->FindRegionFromAddress(phyAddr, RegionIndex, RangeIndex))
-        return FALSE;
+	if (!pConfig->BlockDeviceInformation->FindRegionFromAddress(Address, RegionIndex, RangeIndex))
+		return FALSE;
 
-    const BlockRegionInfo* pRegion = &pConfig->BlockDeviceInformation->Regions[RegionIndex];
+	const BlockRegionInfo* pRegion = &pConfig->BlockDeviceInformation->Regions[RegionIndex];
 
-    ByteAddress StartSector = pConfig->BlockDeviceInformation->PhysicalToSectorAddress( pRegion, phyAddr );
+	ByteAddress StartSector = pConfig->BlockDeviceInformation->PhysicalToSectorAddress(pRegion, Address);
 
-    UINT32 SectorsPerBlock = pRegion->BytesPerBlock / pConfig->BlockDeviceInformation->BytesPerSector;
+	UINT32 SectorsPerBlock = pRegion->BytesPerBlock / pConfig->BlockDeviceInformation->BytesPerSector;
 
-    SectorAddress SectorAddress = (StartSector / SectorsPerBlock) * SectorsPerBlock;
+	SectorAddress SectorAddress = (StartSector / SectorsPerBlock) * SectorsPerBlock;
 
 	GLOBAL_LOCK(irq);
 
-    CPU_SPI_Xaction_Start(g_SD_BL_Config.SPI);
+	CPU_SPI_Xaction_Start(g_SD_BL_Config.SPI);
 
-    EraseSectors(SectorAddress, SectorsPerBlock);
+	EraseSectors(SectorAddress, SectorsPerBlock);
 
-    CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
+	CPU_SPI_Xaction_Stop(g_SD_BL_Config.SPI);
 
-    return TRUE;
+	return TRUE;
 
 }
 
 void SD_BS_Driver::SetPowerState(void *context, UINT32 State)
 {
-    // our flash driver is always Power ON
-    return ;
+	// our flash driver is always Power ON
+	return;
 }
 
 UINT32 SD_BS_Driver::MaxSectorWrite_uSec(void *context)
 {
-    NATIVE_PROFILE_PAL_FLASH();
+	NATIVE_PROFILE_PAL_FLASH();
 
-    SD_BLOCK_CONFIG *config = (SD_BLOCK_CONFIG*)context;
+	SD_BLOCK_CONFIG *config = (SD_BLOCK_CONFIG*)context;
 
-    return config->BlockDeviceInformation->MaxSectorWrite_uSec;
+	return config->BlockDeviceInformation->MaxSectorWrite_uSec;
 }
 
 UINT32 SD_BS_Driver::MaxBlockErase_uSec(void *context)
 {
-    NATIVE_PROFILE_PAL_FLASH();
+	NATIVE_PROFILE_PAL_FLASH();
 
-    SD_BLOCK_CONFIG *config = (SD_BLOCK_CONFIG*)context;
+	SD_BLOCK_CONFIG *config = (SD_BLOCK_CONFIG*)context;
 
-    return config->BlockDeviceInformation->MaxBlockErase_uSec;
+	return config->BlockDeviceInformation->MaxBlockErase_uSec;
 }
 
