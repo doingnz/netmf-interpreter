@@ -1,12 +1,20 @@
-#.NET Micro Framework Interpreter  
+## .NET Micro Framework Interpreter  
 
-[![Join the chat at https://gitter.im/NETMF/netmf-interpreter](https://badges.gitter.im/NETMF/netmf-interpreter.svg)](https://gitter.im/NETMF/netmf-interpreter?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Welcome to a fork of the .NET Micro Framework interpreter GitHub repository. This repository includes a few code fixes and enhancements over the orginal .netMF. The most uptodate branch is VS2019. 
 
-[![Build status](http://netmfbuildstatus.cloudapp.net/BuildStatus.svc/Badge)](http://netmfbuildstatus.cloudapp.net/BuildStatus.svc/Report)
+Sorry several changes all lumped into the last commit to this branch. 
 
-Welcome to the .NET Micro Framework interpreter GitHub repository. 
+## VS2019 VSIX
+The project files are setup to create VS2019 VSIX installer and V4.4 of NetMF SDK
 
-The Microsoft® .NET Micro Framework combines the reliability and efficiency of managed code with the premier development tools of Microsoft Visual Studio® to deliver exceptional productivity for developing embedded applications on small devices. The Microsoft .NET Micro Framework SDK supports development of code, including device I/O, in the C# language using a subset of the .NET libraries, and is fully integrated with the Microsoft Visual Studio® development environment. The .NET Micro Framework class library supports all major namespaces and types from the desktop framework, managed drivers support, Remote Firmware Updates and Cryptographic functions for Secure Devices. This GitHub project allows building the full SDK and device Firmware images including the lwIP open source TCP/IP stack and the OpenSSL distribution.
+## SD Card and FAT above 2GB
+The SD Card driver and FAT subsusytems have been updated with code kindly shared by the Mountaineer Group (Apache Licence 2.0). This is achived by changing the offset calcualtions from 32bit to 64bit values. The code has been running for some time in a netMF based device, however as a whole, SD Card support has limitations on netMF as it is slow (SPI) and limited error checking (i.e SD card FAT is easily corrupted). Large numbers of files in a folder can mek it painfully slow. 
+
+## ARM9 support
+Includes the satrtup code to support ARM9 (Device Solutions Meridian) with netMF 4.4
+
+## Untested build / sdk
+Currently this is the public branch of a private repo with a simple compare/merge of open source portions into the public branch. I have not tried this build on any other hardware and not attempted to build this code as found in the repo. You will need to merge the bits you want into your own repo. 
 
 ## Wiki Docs
 Information on building the framework and internal development guides will appear on the [wiki](https://github.com/NETMF/netmf-interpreter/wiki). If you have content that is relevant to the NETMF development community that you would like to [contribute](https://github.com/NETMF/netmf-interpreter/wiki/Contributing) feel free to join in and participate in the future of the .NET Micro Framework. 
